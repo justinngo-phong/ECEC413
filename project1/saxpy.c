@@ -6,8 +6,8 @@
  * Date created: April 14, 2020
  * Date modified: April 13, 2023 
  *
- * Student names: FIXME
- * Date: FIXME
+ * Student names: Harrison Muller, Justin Ngo 
+ * Date: April 17, 2023 
  *
  * */
 
@@ -34,6 +34,7 @@ void compute_gold(float *, float *, float, int);
 void compute_using_pthreads_v1(float *, float *, float, int, int);
 void compute_using_pthreads_v2(float *, float *, float, int, int);
 void *saxpy_v1(void *);
+void *saxpy_v2(void *);
 int check_results(float *, float *, int, float);
 
 int main(int argc, char **argv)
@@ -130,7 +131,6 @@ void compute_gold(float *x, float *y, float a, int num_elements)
 /* Calculate SAXPY using pthreads, version 1. Place result in the Y vector */
 void compute_using_pthreads_v1(float *x, float *y, float a, int num_elements, int num_threads)
 {
-    /* FIXME: Complete this function */
 	pthread_t *thread_id = (pthread_t *)malloc(num_threads * sizeof(pthread_t)); /* Data structure to store the thread IDs */
 	pthread_attr_t attributes;      /* Thread attributes */
 	pthread_attr_init(&attributes); /* Initialize thread attributes to default values */
@@ -164,30 +164,84 @@ void compute_using_pthreads_v1(float *x, float *y, float a, int num_elements, in
 /* Calculate SAXPY using pthreads, version 2. Place result in the Y vector */
 void compute_using_pthreads_v2(float *x, float *y, float a, int num_elements, int num_threads)
 {
-    /* FIXME: Complete this function */
+	pthread_t *thread_id = (pthread_t *)malloc(num_threads * sizeof(pthread_t)); /* Data structure to store the thread IDs */
+	pthread_attr_t attributes;      /* Thread attributes */
+	pthread_attr_init(&attributes); /* Initialize thread attributes to default values */
     
+	int i;	
+
+	/* Allocate space for thread data */
+	thread_data_t *thread_data = (thread_data_t *)malloc(sizeof(thread_data_t) * num_threads); 
+
+	/* Initialize thread data */
+	for (i = 0; i < num_threads; i++) { 
+		thread_data[i].tid = i;
+		thread_data[i].num_threads = num_threads;
+		thread_data[i].num_elements = num_elements;
+		thread_data[i].x = x;
+		thread_data[i].y = y;
+		thread_data[i].a = a;
+		thread_data[i].offset = num_threads;
+	}
+
+	/* Create threads and have them execute saxpy_v2() function */
+	for (i = 0; i < num_threads; i++)
+		pthread_create(&thread_id[i], &attributes, saxpy_v2, (void *)&thread_data[i]);
+
+	/* Join point: wait for workers to finish */
+	for (i = 0; i < num_threads; i++)
+		pthread_join(thread_id[i], NULL);
+
+	free((void *)thread_data);
 }
 
-void *saxpy_v1(void* args) {
-	
-	thread_data_t *thread_data = (thread_data_t *)args; //Type cast args parameter to thread_data type
-	
-	if (thread_data->tid < (thread_data->num_threads - 1)) {
-		for (int i = thread_data->offset; i < (thread_data->offset + thread_data->chunk_size); i++)
-			thread_data->y[i] = thread_data->a * thread_data->x[i] + thread_data->y[i];
-	}
-	else {
-		for (int i = thread_data->offset; i < thread_data->num_elements; i++)
-			thread_data->y[i] = thread_data->a * thread_data->x[i] + thread_data->y[i];
+void *saxpy_v1(void* args) 
+{	
+	/* Type cast args parameter to thread_data type */
+	thread_data_t *thread_data = (thread_data_t *)args; 
+
+	int tid = thread_data->tid;
+	int n = thread_data->num_elements;
+	float a = thread_data->a;
+	float *x = thread_data->x;
+	float *y = thread_data->y;
+	int offset = thread_data->offset;
+	int chunk_size = thread_data->chunk_size;
+	int i;
+
+	if (tid < n - 1) {
+		for (i = offset; i < offset + chunk_size; i++) {
+			y[i] = a * x[i] + y[i];
+	  	}
+	} else {
+		for (i = offset; i < n; i++) {
+			y[i] = a * x[i] + y[i];
+		}
 	}
 
 	pthread_exit(NULL);
 
 }
 
-void *saxpy_v2(void* args){
+void *saxpy_v2(void* args)
+{
+	/* Type cast args parameter to thread_data pointer */
+	thread_data_t *thread_data = (thread_data_t *)args;
+		
+	int tid = thread_data->tid;
+	int k = thread_data->num_threads;
+	int n = thread_data->num_elements;
+	float a = thread_data->a;
+	float *x = thread_data->x;
+	float *y = thread_data->y;
+	int stride = k;
 
-//Use for saxpy_v2
+	while (tid < n) {
+		y[tid] = a * x[tid] + y[tid];
+		tid += stride;
+	}
+
+	pthread_exit(NULL);
 
 }
 
