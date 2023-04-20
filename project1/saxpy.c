@@ -201,6 +201,7 @@ void *saxpy_v1(void* args)
 	thread_data_t *thread_data = (thread_data_t *)args; 
 
 	int tid = thread_data->tid;
+	int k = thread_data->num_threads;
 	int n = thread_data->num_elements;
 	float a = thread_data->a;
 	float *x = thread_data->x;
@@ -209,7 +210,7 @@ void *saxpy_v1(void* args)
 	int chunk_size = thread_data->chunk_size;
 	int i;
 
-	if (tid < n - 1) {
+	if (tid < k - 1) {
 		for (i = offset; i < offset + chunk_size; i++) {
 			y[i] = a * x[i] + y[i];
 	  	}

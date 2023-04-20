@@ -27,7 +27,7 @@ Or use the Makefile included:
 To run the code:
 	$ ./saxpy {number of elements} {number of threads}
 For example:
-	$ ./saxpy 10^6 8
+	$ ./saxpy 1000000 8
 
 To clean up executable files:
 	make clean
