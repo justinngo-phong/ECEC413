@@ -20,7 +20,7 @@
 #include "jacobi_solver.h"
 
 /* Uncomment the line below to spit out debug information */ 
-#define DEBUG 
+/* #define DEBUG */
 
 int main(int argc, char **argv) 
 {
@@ -96,7 +96,7 @@ void compute_using_pthreads_v1(const matrix_t A, matrix_t mt_sol_x_v1, const mat
 	pthread_attr_init(&attributes);
 
 	/* Allocate new matrix to swap values during iterations with matrix x */
-	matrix_t new_x = allocate_matrix(A.num_rows, 1, 0);
+	matrix_t x_swap = allocate_matrix(mt_sol_x_v1.num_rows, 1, 0);
 
 	int i;
 	int chunk_size = (int)floor(mt_sol_x_v1.num_rows / num_threads);
@@ -108,7 +108,6 @@ void compute_using_pthreads_v1(const matrix_t A, matrix_t mt_sol_x_v1, const mat
 	/* Initialize barrier */
 	pthread_barrierattr_t barrier_attributes;
 	pthread_barrier_t barrier;
-	pthread_barrierattr_init(&barrier_attributes);
 	pthread_barrier_init(&barrier, &barrier_attributes, num_threads + 1);
 
 	/* Initialize mutex lock */
@@ -127,7 +126,7 @@ void compute_using_pthreads_v1(const matrix_t A, matrix_t mt_sol_x_v1, const mat
 		thread_data[i].A = A;
 		thread_data[i].B = B;
 		thread_data[i].x = &mt_sol_x_v1;
-		thread_data[i].new_x = &new_x;
+		thread_data[i].x_swap = &x_swap;
 		thread_data[i].max_iter = max_iter;
 		thread_data[i].start_index = start_index;
 		thread_data[i].end_index = end_index;
@@ -146,12 +145,6 @@ void compute_using_pthreads_v1(const matrix_t A, matrix_t mt_sol_x_v1, const mat
 	for (i = 0; i < num_threads; i++)
 		pthread_join(thread_id[i], NULL);
 
-	if (num_iter < max_iter) 
-		fprintf(stderr, "\nConvergence achieved after %d iterations\n", num_iter);
-	else
-		fprintf(stderr, "\nMaximum allowed iterations reached\n");
-
-	free(new_x.elements);
 	free((void *)thread_data);
 }
 
@@ -161,17 +154,16 @@ void *jacobi_v1(void* args)
 	int tid = thread_data->tid;
 	matrix_t A = thread_data->A;
 	matrix_t *src = thread_data->x;
-	matrix_t *dest = thread_data->new_x;
+	matrix_t *dest = thread_data->x_swap;
 	matrix_t B = thread_data->B;
 	int max_iter = thread_data->max_iter;
 	int start_index = thread_data->start_index;
 	int end_index = thread_data->end_index;
-	float *diff = thread_data->diff;
-	int *converged = thread_data->converged;
-	pthread_barrier_t *barrier = thread_data->barrier;
-	pthread_mutex_t *lock = thread_data->lock;
+	float *diff = diff;
+	int *converged = converged;
+	pthread_barrier_t *barrier = barrier;
+	pthread_mutex_t *lock = lock;
 	int *num_iter = thread_data->num_iter;
-	float mse;
 
 	int i, j;
 	float sum = 0.0;
@@ -181,17 +173,17 @@ void *jacobi_v1(void* args)
 		src->elements[i] = B.elements[i];
 
 	/* Calculate partial diff and add to total diff then check */
-	while (!*converged) {
+	while (!converged) {
 		// only reset diff to 0 if it's the first thread
 		if (tid == 0) {
 			diff = 0;
-			(*num_iter)++;
+			*num_iter++;
 		}
 
 		// wait until every threads has checked its tid
 		pthread_barrier_wait(barrier);
 
-		// calculate new matrix for the chunk
+		// calculate partial diff for the chunk
 		for (i = start_index; i <= end_index; i++) {
 			sum = 0.0;
 			for (j = 0; j < A.num_columns; j++) {
@@ -203,35 +195,20 @@ void *jacobi_v1(void* args)
 			dest->elements[i] = (B.elements[i] - sum) / A.elements[i * (A.num_columns + 1)];
 		}
 
-		// update partial diff
-		float pdiff = 0.0;
-		for (i = start_index; i <= end_index; i++) {
-			pdiff += pow(dest->elements[i] - src->elements[i], 2); 
-		}
-
-		// update diff
 		pthread_mutex_lock(lock);
-		*diff += pdiff;
+		*diff += sum;
 		pthread_mutex_unlock(lock);
 
 		pthread_barrier_wait(barrier);
 
-		mse = sqrt(*thread_data->diff);
-		fprintf(stderr, "Iteration: %d. MSE = %f\n", *num_iter, mse);
-
 		// check if values have converged or number of iterations reaches max
-		if ((mse <= THRESHOLD) || (*num_iter == max_iter)) { 
+		if ((sqrt(*diff) <= THRESHOLD) || (*num_iter == max_iter)) 
 			*converged = 1;
 
-			// copy destination result to mt_sol_x_v1
-			for (i = start_index; i <= end_index; i++)
-				thread_data->x->elements[i] = dest->elements[i];
-		}
-
 		// swap src and dest to ensure data get updated and no conflict occurs
-		matrix_t *tmp = src;
+		matrix_t *temp = src;
 		src = dest;
-		dest = tmp;
+		dest = temp;
 	}
 
 	pthread_exit(NULL);

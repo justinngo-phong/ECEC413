@@ -20,7 +20,7 @@
 #include "jacobi_solver.h"
 
 /* Uncomment the line below to spit out debug information */ 
-#define DEBUG 
+// #define DEBUG 
 
 int main(int argc, char **argv) 
 {
@@ -206,12 +206,12 @@ void *jacobi_v1(void* args)
 		// update partial diff
 		float pdiff = 0.0;
 		for (i = start_index; i <= end_index; i++) {
-			pdiff += pow(dest->elements[i] - src->elements[i], 2); 
+			pdiff += (dest->elements[i] - src->elements[i]) * (dest->elements[i] - src->elements[i]);
 		}
 
 		// update diff
 		pthread_mutex_lock(lock);
-		*diff += pdiff;
+		*(thread_data->diff) += pdiff;
 		pthread_mutex_unlock(lock);
 
 		pthread_barrier_wait(barrier);
@@ -229,9 +229,9 @@ void *jacobi_v1(void* args)
 		}
 
 		// swap src and dest to ensure data get updated and no conflict occurs
-		matrix_t *tmp = src;
+		matrix_t *temp = src;
 		src = dest;
-		dest = tmp;
+		dest = temp;
 	}
 
 	pthread_exit(NULL);
