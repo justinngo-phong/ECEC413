@@ -19,7 +19,8 @@
 #include "jacobi_solver.h"
 
 /* Uncomment the line below to spit out debug information */ 
-#define DEBUG 
+//#define DEBUG 
+//#define PRINT_ITERATION
 
 int main(int argc, char **argv) 
 {
@@ -108,7 +109,7 @@ void compute_using_pthreads_v1(const matrix_t A, matrix_t mt_sol_x_v1, const mat
 	pthread_barrierattr_t barrier_attributes;
 	pthread_barrier_t barrier;
 	pthread_barrierattr_init(&barrier_attributes);
-	pthread_barrier_init(&barrier, &barrier_attributes, num_threads + 1);
+	pthread_barrier_init(&barrier, &barrier_attributes, num_threads);
 
 	/* Initialize mutex lock */
 	pthread_mutex_t lock;
@@ -152,6 +153,7 @@ void compute_using_pthreads_v1(const matrix_t A, matrix_t mt_sol_x_v1, const mat
 
 	free(new_x.elements);
 	free((void *)thread_data);
+	pthread_barrier_destroy(&barrier);
 }
 
 void *jacobi_v1(void* args)
@@ -183,7 +185,7 @@ void *jacobi_v1(void* args)
 	while (!*converged) {
 		// only reset diff to 0 if it's the first thread
 		if (tid == 0) {
-			diff = 0;
+			*diff = 0;
 			(*num_iter)++;
 		}
 
@@ -213,10 +215,14 @@ void *jacobi_v1(void* args)
 		*diff += pdiff;
 		pthread_mutex_unlock(lock);
 
-		pthread_barrier_wait(barrier);
+		//pthread_barrier_wait(barrier);
 
-		mse = sqrt(*thread_data->diff);
-		fprintf(stderr, "Iteration: %d. MSE = %f\n", *num_iter, mse);
+		mse = sqrt(*diff);
+
+#ifdef PRINT_ITERATION
+		if (tid == 0)
+			fprintf(stderr, "Iteration: %d. MSE = %f\n", *num_iter, mse);
+#endif
 
 		// check if values have converged or number of iterations reaches max
 		if ((mse <= THRESHOLD) || (*num_iter == max_iter)) { 
@@ -224,8 +230,10 @@ void *jacobi_v1(void* args)
 
 			// copy destination result to mt_sol_x_v1
 			for (i = start_index; i <= end_index; i++)
+				//printf("%d\n", thread_data->x);
 				thread_data->x->elements[i] = dest->elements[i];
 		}
+		pthread_barrier_wait(barrier);
 
 		// swap src and dest to ensure data get updated and no conflict occurs
 		matrix_t *tmp = src;
@@ -241,31 +249,31 @@ void *jacobi_v1(void* args)
 void compute_using_pthreads_v2(const matrix_t A, matrix_t mt_sol_x_v2, const matrix_t B, int max_iter, int num_threads)
 {
 
-  int tid;
+  	int tid;
 
 	pthread_t *thread_id = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
 	pthread_attr_t attributes;
 	pthread_attr_init(&attributes);
  
-  matrix_t new_x = allocate_matrix(A.num_rows, 1, 0);
+  	matrix_t new_x = allocate_matrix(A.num_rows, 1, 0);
   
-  int converged = 0;
+  	int converged = 0;
   
-  float diff = 0.0;
+  	float diff = 0.0;
   
-  int num_iter = 0;
+  	int num_iter = 0;
   
-  /*Initialze Barrier*/
-  pthread_barrierattr_t barrier_attributes;
+  	/*Initialze Barrier*/
+  	pthread_barrierattr_t barrier_attributes;
 	pthread_barrier_t barrier;
 	pthread_barrierattr_init(&barrier_attributes);
-	pthread_barrier_init(&barrier, &barrier_attributes, num_threads + 1);
+	pthread_barrier_init(&barrier, &barrier_attributes, num_threads);
  
-  /*Initialize Mutex Lock*/
-  pthread_mutex_t lock;
+  	/*Initialize Mutex Lock*/
+  	pthread_mutex_t lock;
 	pthread_mutex_init(&lock, NULL);
  
-  thread_data_t *thread_data = (thread_data_t *)malloc(sizeof(thread_data_t) * num_threads);
+  	thread_data_t *thread_data = (thread_data_t *)malloc(sizeof(thread_data_t) * num_threads);
 
 	for(tid = 0; tid < num_threads; tid++){
 
@@ -277,25 +285,25 @@ void compute_using_pthreads_v2(const matrix_t A, matrix_t mt_sol_x_v2, const mat
 
 		thread_data[tid].B = B;
    
-    thread_data[tid].x = &mt_sol_x_v2;
+    	thread_data[tid].x = &mt_sol_x_v2;
     
-    thread_data[tid].new_x = &new_x;
+    	thread_data[tid].new_x = &new_x;
 
-    thread_data[tid].max_iter = max_iter;
+    	thread_data[tid].max_iter = max_iter;
     
-    thread_data[tid].barrier = &barrier;
+    	thread_data[tid].barrier = &barrier;
     
-    thread_data[tid].lock = &lock;
+    	thread_data[tid].lock = &lock;
     
-    thread_data[tid].diff = &diff;
+    	thread_data[tid].diff = &diff;
     
-    thread_data[tid].converged = &converged;
+    	thread_data[tid].converged = &converged;
     
-    thread_data[tid].num_iter = &num_iter;
+    	thread_data[tid].num_iter = &num_iter;
     
-    thread_data[tid].start_index = 0;
+    	thread_data[tid].start_index = 0;
     
-    thread_data[tid].end_index = A.num_rows;
+    	thread_data[tid].end_index = A.num_rows;
     
   }
     
@@ -315,6 +323,7 @@ void compute_using_pthreads_v2(const matrix_t A, matrix_t mt_sol_x_v2, const mat
   }
 	free(new_x.elements);
 	free((void *)thread_data);
+	pthread_barrier_destroy(&barrier);
 
 }
 
@@ -365,7 +374,7 @@ void *jacobi_v2(void* args){
   
     if(tid == 0) {
     
-      diff = 0;
+      *diff = 0;
       
       (*num_iter)++;
       
@@ -408,7 +417,6 @@ void *jacobi_v2(void* args){
 		  *diff += pdiff;
 		  pthread_mutex_unlock(lock);
 
-		  pthread_barrier_wait(barrier);
 
 		  mse = sqrt(*thread_data->diff);
 		  fprintf(stderr, "Iteration: %d. MSE = %f\n", *num_iter, mse);
@@ -422,6 +430,7 @@ void *jacobi_v2(void* args){
 				thread_data->x->elements[i] = dest->elements[i];
 		  }
 
+		  pthread_barrier_wait(barrier);
 		  // swap src and dest to ensure data get updated and no conflict occurs
 		  matrix_t *tmp = src;
 		  src = dest;
