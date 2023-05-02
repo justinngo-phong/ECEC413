@@ -39,6 +39,7 @@ matrix_t create_diagonally_dominant_matrix(int, int);
 void compute_using_pthreads_v1(const matrix_t, matrix_t, const matrix_t, int max_iter, int num_threads);
 void *jacobi_v1(void *args);
 void compute_using_pthreads_v2(const matrix_t, matrix_t, const matrix_t, int max_iter, int num_threads);
+void *jacobi_v2(void* args);
 void print_matrix(const matrix_t);
 float get_random_number(int, int);
 
