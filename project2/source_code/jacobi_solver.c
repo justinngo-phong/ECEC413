@@ -195,7 +195,7 @@ void *jacobi_v1(void* args)
 	float mse;
 
 	int i, j;
-	float sum = 0.0;
+	double sum = 0.0;
 
 	// Initialize matrix
 	for (i = start_index; i <= end_index; i++)
@@ -246,15 +246,16 @@ void *jacobi_v1(void* args)
 #endif
 
 		// check if values have converged or number of iterations reaches max
-		//if (((mse <= THRESHOLD) || (*num_iter == max_iter)) && (tid == 0)) { 
-		if ((mse <= THRESHOLD) || (*num_iter == max_iter)){ 
-			*converged = 1;
+		//if (tid == 0) {
+			if ((mse <= THRESHOLD) || (*num_iter == max_iter)){ 
+				*converged = 1;
 
-			// copy destination result to mt_sol_x_v1
-			for (i = start_index; i <= end_index; i++)
-				//printf("%d\n", thread_data->x);
-				thread_data->x->elements[i] = dest->elements[i];
-		}
+				// copy destination result to mt_sol_x_v1
+				for (i = start_index; i <= end_index; i++)
+					//printf("%d\n", thread_data->x);
+					thread_data->x->elements[i] = dest->elements[i];
+			}
+		//}
 		pthread_barrier_wait(barrier);
 
 		// swap src and dest to ensure data get updated and no conflict occurs
@@ -353,7 +354,7 @@ void *jacobi_v2(void* args){
 	int *num_iter = thread_data->num_iter;
 	float mse;
 	int i = 0, j;
-	float sum = 0.0;
+	double sum = 0.0;
 
 	while(i < end_index){
 		src->elements[i] = B.elements[i];
@@ -407,13 +408,15 @@ void *jacobi_v2(void* args){
 #endif
 
 		// check if values have converged or number of iterations reaches max
-		if ((mse <= THRESHOLD) || (*num_iter == max_iter)) { 
-			*converged = 1;
+		//if (tid == 0) {
+			if ((mse <= THRESHOLD) || (*num_iter == max_iter)) { 
+				*converged = 1;
 
-			// copy destination result to mt_sol_x_v1
-			for (i = start_index; i <= end_index; i++)
-				thread_data->x->elements[i] = dest->elements[i];
-		}
+				// copy destination result to mt_sol_x_v1
+				for (i = start_index; i <= end_index; i++)
+					thread_data->x->elements[i] = dest->elements[i];
+			}
+		//}
 
 		pthread_barrier_wait(barrier);
 
