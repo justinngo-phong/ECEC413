@@ -1,6 +1,7 @@
 CC=gcc
 CFLAGS=-Wall -O3 -pthread -lm
 
+
 SRC=jacobi_solver.c compute_gold.c
 
 # Object files
