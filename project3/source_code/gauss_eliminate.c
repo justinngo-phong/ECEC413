@@ -25,7 +25,7 @@
 /* Function prototypes */
 extern int compute_gold(float *, int);
 Matrix allocate_matrix(int, int, int);
-void gauss_eliminate_using_pthreads(Matrix);
+void gauss_eliminate_using_pthreads(Matrix, int);
 int perform_simple_check(const Matrix);
 void print_matrix(const Matrix);
 float get_random_number(int, int);
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     /* FIXME: Perform Gaussian elimination using pthreads. 
      * The resulting upper triangular matrix should be returned in U_mt */
     fprintf(stderr, "\nPerforming gaussian elimination using pthreads\n");
-    gauss_eliminate_using_pthreads(U_mt);
+    gauss_eliminate_using_pthreads(U_mt, matrix_size);
 
     /* Check if pthread result matches reference solution within specified tolerance */
     fprintf(stderr, "\nChecking results\n");
@@ -104,8 +104,109 @@ int main(int argc, char **argv)
 
 
 /* FIXME: Write code to perform gaussian elimination using pthreads */
-void gauss_eliminate_using_pthreads(Matrix U)
+void gauss_eliminate_using_pthreads(Matrix U, int matrix_size)
 {
+
+  int tid;
+  int num_threads = 4;
+  int chunk_size = (int)floor(matrix_size / num_threads);
+  int remainder = matrix_size % num_threads;
+
+  pthread_t *thread_id = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
+  pthread_attr_t attributes;
+  pthread_attr_init(&attributes);
+
+  pthread_barrierattr_t barrier_attributes;
+  pthread_barrier_t barrier;
+  pthread_barrierattr_init(&barrier_attributes);
+  pthread_barrier_init(&barrier, &barrier_attributes, num_threads);
+
+  /* Initialize mutex lock */
+  pthread_mutex_t lock;
+  pthread_mutex_init(&lock, NULL);
+  
+  thread_data_t *thread_data = (thread_data_t *)malloc(sizeof(thread_data_t) * num_threads);
+  
+  for(tid = 0; tid < num_threads; tid++){
+  
+    int start_index = tid * chunk_size
+    
+    int end_index = (i == num_threads - 1) ? start_index + chunk_size + remainder - 1
+			: start_index + chunk_size - 1;
+    
+    thread_data[tid].tid = tid;
+    
+    thread_data[tid].start_index = start_index;
+    
+    thread_data[tid].end_index = end_index;
+    
+    thread_data[tid].U = U;
+    
+    thread_data[tid].barrier = &barrier;
+    
+		thread_data[tid].lock = &lock;
+  
+  }
+  
+  /* Create threads */
+	for (i = 0; i < num_threads; i++)
+		pthread_create(&thread_id[i], &attributes, gaus, (void *)&thread_data[i]);
+
+	/* Join point */
+	for (i = 0; i < num_threads; i++)
+		pthread_join(thread_id[i], NULL);
+   
+   
+  free((void *)thread_data);
+	pthread_barrier_destroy(&barrier);
+
+}
+
+void *gaus(void* args) { 
+
+  thread_data_t *thread_data = (thread_data_t *)args;
+
+  int tid = thread_data ->tid;
+  
+  Matrix U = thread_data->U;
+  
+  int start = thread_data->start_index;
+  
+  int end = thread_data->end_index;
+  
+  pthread_barrier_t *barrier = thread_data->barrier;
+  
+	pthread_mutex_t *lock = thread_data->lock;
+  
+  int i, j, k;
+  
+  for(k = start; k < end; k++){
+  
+    for(j = (k + 1); j < matrix_size; j++){
+    
+        if (U[matrix_size * k + k] == 0) {
+                fprintf(stderr, "Numerical instability. The principal diagonal element is zero.\n");
+                return -1;
+        }
+        
+        }
+        pthread_barrier_wait(barrier);
+        
+        U[num_elements * k + k] = 1;
+        
+        pthread_barrier_wait(barrier);
+        for (i = (k + 1); i < matrix_size; i++) {
+            for (j = (k + 1); j < matrix size; j++)
+                U[matrix_size * i + j] = U[matrix_size * i + j] - (U[matrix_size * i + k] * U[matrix_size * k + j]);	/* Elimination step */
+            
+            U[num_elements * i + k] = 0;
+        }
+        pthread_barrier_wait(barrier);
+    }
+  
+  }
+
+
 }
 
 

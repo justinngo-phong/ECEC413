@@ -8,5 +8,16 @@ typedef struct {
     float* elements;            /* Pointer to the first element of the matrix */
 } Matrix;
 
+typedef struct thread_data_s {
+
+int tid;
+int start_index;
+int end_index;
+Matrix U; 
+pthread_barrier_t *barrier;
+pthread_mutex_t *lock;
+
+}
+
 #endif /* _MATRIXMUL_H_ */
 
