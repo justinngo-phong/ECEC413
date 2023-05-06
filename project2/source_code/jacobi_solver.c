@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 	/* Compute Jacobi solution using reference code */
 	fprintf(stderr, "Generating solution using reference code\n");
 	int max_iter = 100000; /* Maximum number of iterations to run */
-	
+
 	gettimeofday(&start, NULL);
 	/* Compute using reference method */
 	compute_gold(A, reference_x, B, max_iter);
@@ -118,14 +118,14 @@ void compute_using_pthreads_v1(const matrix_t A, matrix_t mt_sol_x_v1, const mat
 	/* Allocate new matrix to swap values during iterations with matrix x */
 	matrix_t new_x = allocate_matrix(A.num_rows, 1, 0);
 
+	double diff = 0.0;
+	int num_iter = 0;
+	int converged = 0;
+
 	int i;
 	int chunk_size = (int)floor(mt_sol_x_v1.num_rows / num_threads);
 	int remainder = mt_sol_x_v1.num_rows % num_threads;
-	int converged = 0;
-	float diff = 0.0;
-	int num_iter = 0;
 
-	/* Initialize barrier */
 	pthread_barrierattr_t barrier_attributes;
 	pthread_barrier_t barrier;
 	pthread_barrierattr_init(&barrier_attributes);
@@ -187,12 +187,12 @@ void *jacobi_v1(void* args)
 	int max_iter = thread_data->max_iter;
 	int start_index = thread_data->start_index;
 	int end_index = thread_data->end_index;
-	float *diff = thread_data->diff;
+	double *diff = thread_data->diff;
 	int *converged = thread_data->converged;
 	pthread_barrier_t *barrier = thread_data->barrier;
 	pthread_mutex_t *lock = thread_data->lock;
 	int *num_iter = thread_data->num_iter;
-	float mse;
+	double mse;
 
 	int i, j;
 	double sum = 0.0;
@@ -226,7 +226,7 @@ void *jacobi_v1(void* args)
 		}
 
 		// update partial diff
-		float pdiff = 0.0;
+		double pdiff = 0.0;
 		for (i = start_index; i <= end_index; i++) {
 			pdiff += pow(dest->elements[i] - src->elements[i], 2); 
 		}
@@ -247,14 +247,14 @@ void *jacobi_v1(void* args)
 
 		// check if values have converged or number of iterations reaches max
 		//if (tid == 0) {
-			if ((mse <= THRESHOLD) || (*num_iter == max_iter)){ 
-				*converged = 1;
+		if ((mse <= THRESHOLD) || (*num_iter == max_iter)){ 
+			*converged = 1;
 
-				// copy destination result to mt_sol_x_v1
-				for (i = start_index; i <= end_index; i++)
-					//printf("%d\n", thread_data->x);
-					thread_data->x->elements[i] = dest->elements[i];
-			}
+			// copy destination result to mt_sol_x_v1
+			for (i = start_index; i <= end_index; i++)
+				//printf("%d\n", thread_data->x);
+				thread_data->x->elements[i] = dest->elements[i];
+		}
 		//}
 		pthread_barrier_wait(barrier);
 
@@ -267,7 +267,7 @@ void *jacobi_v1(void* args)
 	pthread_exit(NULL);
 
 }
-/* FIXME: Complete this function to perform the Jacobi calculation using pthreads using striding. 
+/* Complete this function to perform the Jacobi calculation using pthreads using striding. 
  * Result must be placed in mt_sol_x_v2. */
 void compute_using_pthreads_v2(const matrix_t A, matrix_t mt_sol_x_v2, const matrix_t B, int max_iter, int num_threads)
 {
@@ -280,10 +280,8 @@ void compute_using_pthreads_v2(const matrix_t A, matrix_t mt_sol_x_v2, const mat
 
 	matrix_t new_x = allocate_matrix(A.num_rows, 1, 0);
 
-	int converged = 0;
-
-	float diff = 0.0;
-
+	int converged = 0; 
+	double diff = 0.0;
 	int num_iter = 0;
 
 	/*Initialze Barrier*/
@@ -347,13 +345,13 @@ void *jacobi_v2(void* args){
 	int max_iter = thread_data->max_iter;
 	int start_index = thread_data->start_index;
 	int end_index = thread_data->end_index;
-	float *diff = thread_data->diff;
+	double *diff = thread_data->diff;
 	int *converged = thread_data->converged;
 	pthread_barrier_t *barrier = thread_data->barrier;
 	pthread_mutex_t *lock = thread_data->lock;
 	int *num_iter = thread_data->num_iter;
-	float mse;
-	int i = 0, j;
+	double mse;
+	int i = start_index, j;
 	double sum = 0.0;
 
 	while(i < end_index){
@@ -384,7 +382,7 @@ void *jacobi_v2(void* args){
 
 		}
 
-		float pdiff = 0.0;
+		double pdiff = 0.0;
 
 		i = start_index;
 		while(i < end_index){
@@ -409,13 +407,13 @@ void *jacobi_v2(void* args){
 
 		// check if values have converged or number of iterations reaches max
 		//if (tid == 0) {
-			if ((mse <= THRESHOLD) || (*num_iter == max_iter)) { 
-				*converged = 1;
+		if ((mse <= THRESHOLD) || (*num_iter == max_iter)) { 
+			*converged = 1;
 
-				// copy destination result to mt_sol_x_v1
-				for (i = start_index; i <= end_index; i++)
-					thread_data->x->elements[i] = dest->elements[i];
-			}
+			// copy destination result to mt_sol_x_v1
+			for (i = start_index; i <= end_index; i++)
+				thread_data->x->elements[i] = dest->elements[i];
+		}
 		//}
 
 		pthread_barrier_wait(barrier);

@@ -27,7 +27,7 @@ typedef struct thread_data_s {
 	pthread_barrier_t *barrier;
 	pthread_mutex_t *lock;
 	int *converged;
-	float *diff;
+	double *diff;
 	int *num_iter;
 } thread_data_t;
 
