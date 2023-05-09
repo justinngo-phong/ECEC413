@@ -114,7 +114,7 @@ void gauss_eliminate_using_pthreads(Matrix U)
 {
 
 	int tid, i;
-	int num_threads = 8;
+	int num_threads = 16;
 	int chunk_size = (int)floor(U.num_rows / num_threads);
 	int remainder = U.num_rows % num_threads;
 
@@ -137,7 +137,7 @@ void gauss_eliminate_using_pthreads(Matrix U)
 		int start_index = tid * chunk_size;
 		int end_index = (tid == num_threads - 1) ? (start_index + chunk_size + remainder - 1)
 			: (start_index + chunk_size - 1);
-		printf("start: %d, end: %d\n", start_index, end_index);
+		//printf("start: %d, end: %d\n", start_index, end_index);
 
 		thread_data[tid].tid = tid;
 		thread_data[tid].start_index = start_index;
@@ -174,16 +174,16 @@ void *gaussian(void* args) {
 	thread_data_t *thread_data = (thread_data_t *)args;
 	int tid = thread_data->tid; 
 	Matrix *U = thread_data->U;
-	int start = thread_data->start_index;
-	int end = thread_data->end_index;
+	//int start = thread_data->start_index;
+	//int end = thread_data->end_index;
 	pthread_barrier_t *barrier = thread_data->barrier;
-	pthread_mutex_t *lock = thread_data->lock;
+	//pthread_mutex_t *lock = thread_data->lock;
 	int matrix_size = thread_data->matrix_size;
 	int num_threads = thread_data->num_threads;
 	int i, j, k;
 
 	for(k = 0; k < matrix_size; k++){
-		for(j = k+1+tid; j < matrix_size; j+=num_threads) { 
+		for (j = k+1+tid; j < matrix_size; j+=num_threads) { 
 			//for(j = ; j < matrix_size; j+=num_threads) { 
 			//pthread_mutex_lock(lock);
 
@@ -207,7 +207,7 @@ void *gaussian(void* args) {
 		//pthread_mutex_unlock(lock);
 		//printf("%d, %d, %f\n", k, k, U->elements[matrix_size * k + k]);
 
-		pthread_barrier_wait(barrier);
+		//pthread_barrier_wait(barrier);
 
 		for (i = k+1+tid; i < matrix_size; i+=num_threads) {
 			for (j = k+1; j < matrix_size; j++) {
