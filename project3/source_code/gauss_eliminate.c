@@ -83,7 +83,7 @@ int main(int argc, char **argv)
 	}
 	fprintf(stderr, "Single-threaded Gaussian elimination was successful.\n");
 
-	/* FIXME: Perform Gaussian elimination using pthreads. 
+	/* Perform Gaussian elimination using pthreads. 
 	 * The resulting upper triangular matrix should be returned in U_mt */
 	fprintf(stderr, "\nPerforming gaussian elimination using pthreads\n");
 
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 }
 
 
-/* FIXME: Write code to perform gaussian elimination using pthreads */
+/* Write code to perform gaussian elimination using pthreads */
 void gauss_eliminate_using_pthreads(Matrix U)
 {
 	int tid, i;
