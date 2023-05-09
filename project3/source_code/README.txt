@@ -21,14 +21,14 @@ parallelize it using pthread with a combination of chunking and striding methods
 
 --------------------------------COMPILE AND RUN-------------------------------- 
 To compile the code:
-	gcc -o gaussian_elimnation gaussian_elimination.c compute_gold.c -O3 -Wall -std=c99 -lpthread -lm
+	gcc -o gauss_elimnation gauss_elimination.c compute_gold.c -O3 -Wall -std=c99 -lpthread -lm
 Or use the Makefile included:
 	make
 
 To run the code:
-	$ ./gaussian_elimination {matrix_size}
+	$ ./gauss_elimination {matrix_size}
 For example:
-	$ ./gaussian_elimination 1024
+	$ ./gauss_elimination 1024
 
 To clean up executable files:
 	make clean
