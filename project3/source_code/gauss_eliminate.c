@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 	 * The resulting upper triangular matrix should be returned in U_mt */
 	fprintf(stderr, "\nPerforming gaussian elimination using pthreads\n");
 
-	gettimeofday(&stop, NULL);
+	gettimeofday(&start, NULL);
 	gauss_eliminate_using_pthreads(U_mt);
 
 	gettimeofday(&stop, NULL);
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
 	fprintf(stderr, "\nChecking results\n");
 	int size = matrix_size * matrix_size;
 	int res = check_results(U_reference.elements, U_mt.elements, size, 1e-6);
-	fprintf(stderr, "Parallel run time = %0.2f s\n", (float)(stop.tv_sec - start.tv_sec\
+	fprintf(stderr, "CPU run time = %0.2f s\n", (float)(stop.tv_sec - start.tv_sec\
 				+ (stop.tv_usec - start.tv_usec) / (float)1000000));
 	fprintf(stderr, "TEST %s\n", (0 == res) ? "PASSED" : "FAILED");
 
@@ -112,9 +112,8 @@ int main(int argc, char **argv)
 /* FIXME: Write code to perform gaussian elimination using pthreads */
 void gauss_eliminate_using_pthreads(Matrix U)
 {
-
 	int tid, i;
-	int num_threads = 16;
+	int num_threads = 4;
 	int chunk_size = (int)floor(U.num_rows / num_threads);
 	int remainder = U.num_rows % num_threads;
 
@@ -126,10 +125,6 @@ void gauss_eliminate_using_pthreads(Matrix U)
 	pthread_barrier_t barrier;
 	pthread_barrierattr_init(&barrier_attributes);
 	pthread_barrier_init(&barrier, &barrier_attributes, num_threads);
-
-	/* Initialize mutex lock */
-	pthread_mutex_t lock;
-	pthread_mutex_init(&lock, NULL);
 
 	thread_data_t *thread_data = (thread_data_t *)malloc(sizeof(thread_data_t) * num_threads);
 
@@ -144,7 +139,6 @@ void gauss_eliminate_using_pthreads(Matrix U)
 		thread_data[tid].end_index = end_index;
 		thread_data[tid].U = &U;
 		thread_data[tid].barrier = &barrier;
-		thread_data[tid].lock = &lock;
 		thread_data[tid].matrix_size = U.num_rows;
 		thread_data[tid].num_threads = num_threads;
 	}
@@ -157,14 +151,6 @@ void gauss_eliminate_using_pthreads(Matrix U)
 	for (i = 0; i < num_threads; i++)
 		pthread_join(thread_id[i], NULL);
 
-	/*
-	   for (i = 0; i < num_threads; i++)
-	   pthread_create(&thread_id[i], &attributes, gauss_elem, (void *)&thread_data[i]);
-
-	   for (i = 0; i < num_threads; i++)
-	   pthread_join(thread_id[i], NULL);
-	   */
-
 	free((void *)thread_data);
 	pthread_barrier_destroy(&barrier);
 }
@@ -174,58 +160,51 @@ void *gaussian(void* args) {
 	thread_data_t *thread_data = (thread_data_t *)args;
 	int tid = thread_data->tid; 
 	Matrix *U = thread_data->U;
-	//int start = thread_data->start_index;
-	//int end = thread_data->end_index;
+	int start = thread_data->start_index;
+	int end = thread_data->end_index;
 	pthread_barrier_t *barrier = thread_data->barrier;
-	//pthread_mutex_t *lock = thread_data->lock;
 	int matrix_size = thread_data->matrix_size;
 	int num_threads = thread_data->num_threads;
 	int i, j, k;
 
 	for(k = 0; k < matrix_size; k++){
+		/*
 		for (j = k+1+tid; j < matrix_size; j+=num_threads) { 
-			//for(j = ; j < matrix_size; j+=num_threads) { 
-			//pthread_mutex_lock(lock);
-
 			if (U->elements[matrix_size * k + k] == 0) {
 				fprintf(stderr, "Numerical instability. The principal diagonal element is zero.\n");
-				//pthread_mutex_unlock(lock);
 				pthread_exit(NULL);
 			}
 
+			U->elements[matrix_size * k + j] /= U->elements[matrix_size * k + k];	
+		}
+		*/
 
-			U->elements[matrix_size * k + j] /= U->elements[matrix_size * k + k];	/* Division step */
+		if (end >= k + 1) {
+			int j_start = (start > k + 1) ? start : k + 1;
+			for (j = j_start; j < end+1; j++) { 
+				if (U->elements[matrix_size * k + k] == 0) {
+					fprintf(stderr, "Numerical instability. The principal diagonal element is zero.\n");
+					pthread_exit(NULL);
+				}
 
-			//pthread_mutex_unlock(lock);
+				U->elements[matrix_size * k + j] /= U->elements[matrix_size * k + k];	
+			}
 		}
 
 		pthread_barrier_wait(barrier);
-
-		//pthread_mutex_lock(lock);
+		
 		if (tid == 0)
 			U->elements[matrix_size * k + k] = 1;
-		//pthread_mutex_unlock(lock);
-		//printf("%d, %d, %f\n", k, k, U->elements[matrix_size * k + k]);
-
-		//pthread_barrier_wait(barrier);
 
 		for (i = k+1+tid; i < matrix_size; i+=num_threads) {
 			for (j = k+1; j < matrix_size; j++) {
-				//for (j = k+1+tid; j < matrix_size; j+=num_threads) {
-				//pthread_mutex_lock(lock);
 				U->elements[matrix_size * i + j] -= (U->elements[matrix_size * i + k] * U->elements[matrix_size * k + j]);	
-				//pthread_mutex_unlock(lock);
-				//fprintf(stderr, "%d, %d, tid %d\n", i, j, tid);
 			}
 
-			//pthread_mutex_lock(lock);
 			U->elements[matrix_size * i + k] = 0;
-			//pthread_mutex_unlock(lock);
-			//printf("%d, %d, %f\n", i, k, U->elements[matrix_size * i + k]);
 		}
 
 		pthread_barrier_wait(barrier);
-
 	}
 
 	pthread_exit(NULL);
@@ -235,7 +214,7 @@ void *gaussian(void* args) {
 int check_results(float *A, float *B, int size, float tolerance)
 {
 	int i;
-	for (i = 0; i < size; i++)
+	for (i = 0; i < size; i++) 
 		if(fabsf(A[i] - B[i]) > tolerance) 
 			return -1;
 	return 0;
