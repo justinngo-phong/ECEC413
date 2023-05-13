@@ -2,7 +2,10 @@
  * by iteration.
 
  * Author: Naga Kandasamy
- * Date modified: May 19, 2023
+ * Date modified: May 10, 2023
+ *
+ * Students: Justin Ngo, Harrison Muller
+ * Date modified: May 13, 2023
  *
  * Compile as follows:
  * gcc -o jacobi_solver jacobi_solver.c compute_gold.c -fopenmp -std=c99 -Wall -O3 -lm 
@@ -11,6 +14,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/time.h>
 #include <string.h>
 #include <math.h>
 #include "jacobi_solver.h"
@@ -55,17 +59,28 @@ int main(int argc, char **argv)
 	print_matrix(reference_x);
 #endif
 
+	struct timeval start, stop;
+
     /* Compute Jacobi solution using reference code */
 	fprintf(stderr, "Generating solution using reference code\n");
     int max_iter = 100000; /* Maximum number of iterations to run */
+
+	gettimeofday(&start, NULL);
     compute_gold(A, reference_x, B, max_iter);
+	gettimeofday(&stop, NULL);
+	fprintf(stderr, "Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
+				+ (stop.tv_usec - start.tv_usec)/(float)1000000));
     display_jacobi_solution(A, reference_x, B); /* Display statistics */
 	
 	/* Compute the Jacobi solution using openMP. 
      * Solution is returned in mt_solution_x.
      * */
     fprintf(stderr, "\nPerforming Jacobi iteration using omp with %d threads\n", num_threads);
+	gettimeofday(&start, NULL);
 	compute_using_omp(A, mt_solution_x, B, max_iter, num_threads);
+	gettimeofday(&stop, NULL);
+	fprintf(stderr, "Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
+				+ (stop.tv_usec - start.tv_usec)/(float)1000000));
     display_jacobi_solution(A, mt_solution_x, B); /* Display statistics */
     
     free(A.elements); 
@@ -76,10 +91,66 @@ int main(int argc, char **argv)
     exit(EXIT_SUCCESS);
 }
 
-/* FIXME: Complete this function to perform the Jacobi calculation using openMP. 
+/* Complete this function to perform the Jacobi calculation using openMP. 
  * Result must be placed in mt_sol_x. */
 void compute_using_omp(const matrix_t A, matrix_t mt_sol_x, const matrix_t B, int max_iter, int num_threads)
 {
+	int i, j;
+	int num_rows = A.num_rows;
+	int num_cols = A.num_columns;
+
+	/* Allocate n x 1 matrix to hold iteration values. */
+	matrix_t new_x = allocate_matrix(num_rows, 1, 0);
+
+	/* Initalize current Jacobi solution in parallel with OpenMP. */
+#pragma omp parallel for
+	for (i = 0; i < num_rows; i++)
+		mt_sol_x.elements[i] = B.elements[i];
+
+	/* Perform Jacobi iteration. */
+	int done = 0;
+	double ssd, mse;
+	int num_iter = 0;
+
+	while (!done) {
+#pragma omp parallel for private(j) shared(mt_sol_x, new_x)
+		for (i = 0; i < num_rows; i++) {
+			double sum = 0.0;
+			for (j = 0; j < num_cols; j++) {
+				if (i != j)
+					sum += A.elements[i * num_cols + j] * mt_sol_x.elements[j];
+			}
+			
+			/* Update values for the unknowns for the current row. */
+			new_x.elements[i] = (B.elements[i] - sum) / A.elements[i * num_cols + i];
+		}
+
+		/* Check for convergence and updated the unknowns. */
+		ssd = 0.0;
+#pragma omp parallel for reduction(+:ssd)
+		for (i = 0; i < num_rows; i++) 
+			ssd += pow((new_x.elements[i] - mt_sol_x.elements[i]), 2);
+
+#pragma omp parallel for 
+		for (i = 0; i < num_rows; i++)
+			mt_sol_x.elements[i] = new_x.elements[i];
+
+		num_iter++;
+		mse = sqrt(ssd);
+#ifdef PRINT_ITERATION
+		fprintf(stderr, "Iteration: %d. MSE = %f\n", num_iter, mse);
+#endif
+
+		if ((mse <= THRESHOLD) || (num_iter == max_iter))
+			done = 1;
+	}
+
+	if (num_iter < max_iter)
+		fprintf(stderr, "\nConvergence achieved after %d iterations\n", num_iter);
+	else
+		fprintf(stderr, "\nMaxomum allowed iterations reached\n");
+	
+	free(new_x.elements);
 }
 
 /* Allocate a matrix of dimensions height * width.
