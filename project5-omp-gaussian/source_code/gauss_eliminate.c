@@ -85,7 +85,15 @@ int main(int argc, char **argv)
     /* FIXME: Perform Gaussian elimination using OpenMP. 
      * The resulting upper triangular matrix should be returned in U_mt */
     fprintf(stderr, "\nPerforming gaussian elimination using omp\n");
+    
+    gettimeofday(&start, NULL);
+    
     gauss_eliminate_using_omp(U_mt);
+    
+    gettimeofday(&stop, NULL);
+    
+    fprintf(stderr, "CPU run time = %0.2f s\n", (float)(stop.tv_sec - start.tv_sec\
+                + (stop.tv_usec - start.tv_usec) / (float)1000000));
 
     /* Check if pthread result matches reference solution within specified tolerance */
     fprintf(stderr, "\nChecking results\n");
@@ -105,6 +113,33 @@ int main(int argc, char **argv)
 /* FIXME: Write code to perform gaussian elimination using omp */
 void gauss_eliminate_using_omp(Matrix U)
 {
+
+ int i, j, k;
+    
+    for (k = 0; k < U.num_rows; k++) {
+    
+        #pragma omp parallel for
+    
+        for (j = (k + 1); j < U.num_rows; j++) {   /* Reduce the current row. */
+            if (U.elements[U.num_rows * k + k] == 0) {
+                fprintf(stderr, "Numerical instability. The principal diagonal element is zero.\n");
+                exit(EXIT_FAILURE);
+            }            
+            U.elements[U.num_rows * k + j] = (float)(U.elements[U.num_rows * k + j] / U.elements[U.num_rows * k + k]);	/* Division step */
+        }
+
+        U.elements[U.num_rows * k + k] = 1;	/* Set the principal diagonal entry in U to 1 */ 
+        
+        #pragma omp parallel for private(i,j) shared(U)
+        
+        for (i = (k + 1); i < U.num_rows; i++) {
+            for (j = (k + 1); j < U.num_rows; j++)
+                U.elements[U.num_rows * i + j] = U.elements[U.num_rows * i + j] - (U.elements[U.num_rows * i + k] * U.elements[U.num_rows * k + j]);	/* Elimination step */
+            
+            U.elements[U.num_rows * i + k] = 0;
+        }
+    }
+
 }
 
 
