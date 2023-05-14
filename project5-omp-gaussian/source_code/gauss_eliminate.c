@@ -7,7 +7,7 @@
  * Date: FIXME
  *
  * Compile as follows: 
- * gcc -o gauss_eliminate gauss_eliminate.c compute_gold.c -fopenmp -std=c99 -Wall -O3 -lm
+ * gcc -o gauss_eliminate gauss_eliminate.c compute_gold.c -fopenmp -Wall -O3 -lm
  */
 
 #include <stdlib.h>
@@ -16,6 +16,7 @@
 #include <sys/time.h>
 #include <string.h>
 #include <math.h>
+#include <omp.h>
 #include "gauss_eliminate.h"
 
 #define MIN_NUMBER 2
@@ -115,6 +116,8 @@ void gauss_eliminate_using_omp(Matrix U)
 {
 
  int i, j, k;
+ 
+ omp_set_num_threads(4);
     
     for (k = 0; k < U.num_rows; k++) {
     
@@ -130,7 +133,7 @@ void gauss_eliminate_using_omp(Matrix U)
 
         U.elements[U.num_rows * k + k] = 1;	/* Set the principal diagonal entry in U to 1 */ 
         
-        #pragma omp parallel for private(i,j) shared(U)
+        #pragma omp parallel for private(i, j) shared(U)
         
         for (i = (k + 1); i < U.num_rows; i++) {
             for (j = (k + 1); j < U.num_rows; j++)
