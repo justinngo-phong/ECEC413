@@ -4,15 +4,19 @@
  * Date: May 10, 2023
  *
  */
+ 
+#define _POSIX_SOURCE
+ 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
 #include <string.h>
+#include <omp.h>
 #include "pso.h"
 
 
-int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int max_iter)
+int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int num_iter, int num_threads)
 {
     int i, j, iter, g;
     float w, c1, c2;
@@ -26,13 +30,17 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
     iter = 0;
     g = -1;
     unsigned int seed = time(NULL); // Seed the random number generator 
-    while (iter < max_iter) {
+    
+    omp_set_num_threads(num_threads);
+    
+    while (iter < num_iter) {
       
-        #pragma omp parallel for private(j) shared(swarm, particle, gbest)
+        //#pragma omp parallel for private(j) shared(swarm, particle, gbest)
         
         for (i = 0; i < swarm->num_particles; i++) {
             particle = &swarm->particle[i];
             gbest = &swarm->particle[particle->g];  /* Best performing particle from last iteration */ 
+            #pragma omp parallel for
             for (j = 0; j < particle->dim; j++) {   /* Update this particle's state */
                 r1 = (float)rand_r(&seed)/(float)RAND_MAX;
                 r2 = (float)rand_r(&seed)/(float)RAND_MAX;
@@ -68,6 +76,9 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
 
         /* Identify best performing particle */
         g = pso_get_best_fitness_omp(swarm);
+        
+        #pragma omp parallel for
+        
         for (i = 0; i < swarm->num_particles; i++) {
             particle = &swarm->particle[i];
             particle->g = g;
@@ -87,6 +98,7 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
 int optimize_using_omp(char *function, int dim, int swarm_size, 
                        float xmin, float xmax, int num_iter, int num_threads)
 {
+
     //int g = -1;
     
     swarm_t *swarm;
@@ -103,7 +115,7 @@ int optimize_using_omp(char *function, int dim, int swarm_size,
 
     /* Solve PSO */
     int g; 
-    g = pso_solve_omp(function, swarm, xmax, xmin, max_iter);
+    g = pso_solve_omp(function, swarm, xmax, xmin, num_iter, num_threads);
     if (g >= 0) {
         fprintf(stderr, "Solution:\n");
         pso_print_particle(&swarm->particle[g]);
