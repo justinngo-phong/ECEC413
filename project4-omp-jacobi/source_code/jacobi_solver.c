@@ -18,6 +18,7 @@
 #include <string.h>
 #include <math.h>
 #include "jacobi_solver.h"
+#include <omp.h>
 
 /* Uncomment the line below to spit out debug information */ 
 /* #define DEBUG */
@@ -98,6 +99,7 @@ void compute_using_omp(const matrix_t A, matrix_t mt_sol_x, const matrix_t B, in
 	int i, j;
 	int num_rows = A.num_rows;
 	int num_cols = A.num_columns;
+	omp_set_num_threads(num_threads);
 
 	/* Allocate n x 1 matrix to hold iteration values. */
 	matrix_t new_x = allocate_matrix(num_rows, 1, 0);
@@ -141,6 +143,7 @@ void compute_using_omp(const matrix_t A, matrix_t mt_sol_x, const matrix_t B, in
 		fprintf(stderr, "Iteration: %d. MSE = %f\n", num_iter, mse);
 #endif
 
+#pragma omp single
 		if ((mse <= THRESHOLD) || (num_iter == max_iter))
 			done = 1;
 	}

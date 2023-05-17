@@ -3,8 +3,8 @@
  * Author: Naga Kandasamy
  * Date modified: May 10, 2023
  *
- * Student names(s): FIXME
- * Date: FIXME
+ * Student names(s): Harrison Muller, Justin Ngo
+ * Date: May 13, 2023
  *
  * Compile as follows: 
  * gcc -o gauss_eliminate gauss_eliminate.c compute_gold.c -fopenmp -Wall -O3 -lm
