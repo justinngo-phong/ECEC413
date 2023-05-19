@@ -16,6 +16,8 @@
  */  
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <sys/time.h>
 #include "pso.h"
 
 int main(int argc, char **argv)

@@ -2,8 +2,8 @@
 # Author: Naga Kandasamy, May 5, 2020
 
 CC		:= /usr/bin/gcc
-CCFLAGS := -fopenmp -std=c99 -Wall -O3 
-LDLIBS := -lm
+CCFLAGS := -fopenmp -Wall -std=c99 -O3 -lm
+LDLIBS := -fopenmp -lm
 
 all: pso
 

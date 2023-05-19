@@ -8,6 +8,8 @@
 #include <string.h>
 #include "pso.h"
 
+//#define INFINITY
+
 /* Return a random number uniformly distributed between [min, max] */
 float uniform(float min, float max)
 {
@@ -135,7 +137,6 @@ int pso_get_best_fitness(swarm_t *swarm)
     particle_t *particle;
 
     g = -1;
-    //#pragma omp parallel for
     for (i = 0; i < swarm->num_particles; i++) {
         particle = &swarm->particle[i];
         if (particle->fitness < best_fitness) {
@@ -297,9 +298,10 @@ swarm_t *pso_init_omp(char *function, int dim, int swarm_size,
     swarm = (swarm_t *)malloc(sizeof(swarm_t));
     swarm->num_particles = swarm_size;
     swarm->particle = (particle_t *)malloc(swarm_size * sizeof(particle_t));
-    if (swarm->particle == NULL)
+    if (swarm->particle == NULL){
         return NULL;
-
+    }
+    //#pragma omp parallel for
     for (i = 0; i < swarm->num_particles; i++) {
         particle = &swarm->particle[i];
         particle->dim = dim; 
@@ -341,6 +343,7 @@ swarm_t *pso_init_omp(char *function, int dim, int swarm_size,
 
     /* Get index of particle with best fitness */
     g = pso_get_best_fitness(swarm);
+    #pragma omp parallel for
     for (i = 0; i < swarm->num_particles; i++) {
         particle = &swarm->particle[i];
         particle->g = g;
