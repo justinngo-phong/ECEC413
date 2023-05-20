@@ -12,6 +12,7 @@
 #include <time.h>
 #include <math.h>
 #include <string.h>
+#include <omp.h>
 #include "pso.h"
 
 /* Solve PSO */
@@ -28,11 +29,15 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
     c2 = 1.49;
     iter = 0;
     g = -1;
-    unsigned int seed = time(NULL); // Seed the random number generator 
+	//omp_set_num_threads(num_threads);
+	unsigned seed;
+    //unsigned int seed = time(NULL); // Seed the random number generator 
     while (iter < max_iter) {
       
-#pragma omp parallel private(i, j) shared(swarm, particle, gbest)
+//#pragma omp parallel private(i, j) shared(swarm, particle, gbest)
+#pragma omp parallel private(seed)
 		{
+			seed = time(NULL) + omp_get_num_threads();
 #pragma omp for
 			for (i = 0; i < swarm->num_particles; i++) {
 				particle = &swarm->particle[i];
@@ -72,7 +77,7 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
 		} /* End of parallel region */
 
         /* Identify best performing particle */
-        g = pso_get_best_fitness(swarm);
+        g = pso_get_best_fitness_omp(swarm);
 
 #pragma omp parallel for
         for (i = 0; i < swarm->num_particles; i++) {
@@ -97,7 +102,7 @@ int optimize_using_omp(char *function, int dim, int swarm_size,
      /* Initialize PSO */
     swarm_t *swarm;
     srand(time(NULL));
-    swarm = pso_init(function, dim, swarm_size, xmin, xmax);
+    swarm = pso_init_omp(function, dim, swarm_size, xmin, xmax);
     if (swarm == NULL) {
         fprintf(stderr, "Unable to initialize PSO\n");
         exit(EXIT_FAILURE);
@@ -109,7 +114,7 @@ int optimize_using_omp(char *function, int dim, int swarm_size,
 
     /* Solve PSO */
     int g; 
-    g = pso_solve_gold(function, swarm, xmax, xmin, max_iter);
+    g = pso_solve_omp(function, swarm, xmax, xmin, max_iter, num_threads);
     if (g >= 0) {
         fprintf(stderr, "Solution:\n");
         pso_print_particle(&swarm->particle[g]);

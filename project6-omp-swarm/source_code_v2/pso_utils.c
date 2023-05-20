@@ -295,6 +295,7 @@ swarm_t *pso_init_omp(char *function, int dim, int swarm_size,
 	float fitness;
 	swarm_t *swarm;
 	particle_t *particle;
+	int error_flag = 0;
 
 	swarm = (swarm_t *)malloc(sizeof(swarm_t));
 	swarm->num_particles = swarm_size;
@@ -302,48 +303,56 @@ swarm_t *pso_init_omp(char *function, int dim, int swarm_size,
 	if (swarm->particle == NULL){
 		return NULL;
 	}
-	//#pragma omp parallel for
-	for (i = 0; i < swarm->num_particles; i++) {
-		particle = &swarm->particle[i];
-		particle->dim = dim; 
-		/* Generate random particle position */
-		particle->x = (float *)malloc(dim * sizeof(float));
 
-#pragma omp parallel for
+#pragma omp parallel 
+	{
+#pragma omp for 
+		for (i = 0; i < swarm->num_particles; i++) {
+			particle = &swarm->particle[i];
+			particle->dim = dim; 
+			/* Generate random particle position */
+			particle->x = (float *)malloc(dim * sizeof(float));
 
-		for (j = 0; j < dim; j++)
-			particle->x[j] = uniform(xmin, xmax);
+			//#pragma omp parallel for
 
-		/* Generate random particle velocity */ 
-		particle->v = (float *)malloc(dim * sizeof(float));
+			for (j = 0; j < dim; j++)
+				particle->x[j] = uniform(xmin, xmax);
 
-#pragma omp parallel for
+			/* Generate random particle velocity */ 
+			particle->v = (float *)malloc(dim * sizeof(float));
 
-		for (j = 0; j < dim; j++)
-			particle->v[j] = uniform(-fabsf(xmax - xmin), fabsf(xmax - xmin));
+			//#pragma omp parallel for
 
-		/* Initialize best position for particle */
-		particle->pbest = (float *)malloc(dim * sizeof(float));
+			for (j = 0; j < dim; j++)
+				particle->v[j] = uniform(-fabsf(xmax - xmin), fabsf(xmax - xmin));
 
-#pragma omp parallel for
+			/* Initialize best position for particle */
+			particle->pbest = (float *)malloc(dim * sizeof(float));
 
-		for (j = 0; j < dim; j++)
-			particle->pbest[j] = particle->x[j];
+			//#pragma omp parallel for
 
-		/* Initialize particle fitness */
-		status = pso_eval_fitness(function, particle, &fitness);
-		if (status < 0) {
-			fprintf(stderr, "Could not evaluate fitness. Unknown function provided.\n");
-			return NULL;
+			for (j = 0; j < dim; j++)
+				particle->pbest[j] = particle->x[j];
+
+			/* Initialize particle fitness */
+			status = pso_eval_fitness(function, particle, &fitness);
+			if (status < 0) {
+				fprintf(stderr, "Could not evaluate fitness. Unknown function provided.\n");
+				error_flag = 1;
+			}
+			particle->fitness = fitness;
+
+			/* Initialize index of best performing particle */
+			particle->g = -1;
 		}
-		particle->fitness = fitness;
+	}
 
-		/* Initialize index of best performing particle */
-		particle->g = -1;
+	if (error_flag) {
+		return NULL;
 	}
 
 	/* Get index of particle with best fitness */
-	g = pso_get_best_fitness(swarm);
+	g = pso_get_best_fitness_omp(swarm);
 #pragma omp parallel for
 	for (i = 0; i < swarm->num_particles; i++) {
 		particle = &swarm->particle[i];
