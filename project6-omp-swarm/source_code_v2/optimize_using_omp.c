@@ -29,15 +29,13 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
     c2 = 1.49;
     iter = 0;
     g = -1;
-	//omp_set_num_threads(num_threads);
-	unsigned seed;
-    //unsigned int seed = time(NULL); // Seed the random number generator 
+	omp_set_num_threads(num_threads);
+	//unsigned seed;
+    unsigned int seed = time(NULL); // Seed the random number generator 
     while (iter < max_iter) {
       
-//#pragma omp parallel private(i, j) shared(swarm, particle, gbest)
-#pragma omp parallel private(seed)
+#pragma omp parallel private(i, j) shared(swarm, particle, gbest)
 		{
-			seed = time(NULL) + omp_get_num_threads();
 #pragma omp for
 			for (i = 0; i < swarm->num_particles; i++) {
 				particle = &swarm->particle[i];
@@ -68,7 +66,7 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
 				if (curr_fitness < particle->fitness) {
 					particle->fitness = curr_fitness;
 					
-//#pragma omp parallel for
+#pragma omp parallel for
 					
 					for (j = 0; j < particle->dim; j++)
 						particle->pbest[j] = particle->x[j];
