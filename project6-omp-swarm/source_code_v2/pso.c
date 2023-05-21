@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <sys/time.h>
+#include <omp.h>
 #include "pso.h"
 
 int main(int argc, char **argv)
@@ -48,7 +49,7 @@ int main(int argc, char **argv)
 	gettimeofday(&start, NULL);
 	status = optimize_gold(function, dim, swarm_size, xmin, xmax, max_iter);
 	gettimeofday(&stop, NULL);
-	fprintf(stderr, "Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
+	fprintf(stderr, "Gold execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
 				+ (stop.tv_usec - start.tv_usec)/(float)1000000));
 	if (status < 0) {
 		fprintf(stderr, "Error optimizing function using reference code\n");
@@ -62,7 +63,7 @@ int main(int argc, char **argv)
 	gettimeofday(&start, NULL);
 	status = optimize_using_omp(function, dim, swarm_size, xmin, xmax, max_iter, num_threads);
 	gettimeofday(&stop, NULL);
-	fprintf(stderr, "Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
+	fprintf(stderr, "OpenMP execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
 				+ (stop.tv_usec - start.tv_usec)/(float)1000000));
 	if (status < 0) {
 		fprintf(stderr, "Error optimizing function using OpenMP\n");

@@ -29,13 +29,13 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
     c2 = 1.49;
     iter = 0;
     g = -1;
-	omp_set_num_threads(num_threads);
-	//unsigned seed;
     unsigned int seed = time(NULL); // Seed the random number generator 
+	omp_set_num_threads(num_threads);
+	
     while (iter < max_iter) {
-      
-#pragma omp parallel private(i, j) shared(swarm, particle, gbest)
+#pragma omp parallel private(i, j, particle, gbest, r1, r2, curr_fitness) shared(swarm, w, c1, c2, xmax, xmin, g)
 		{
+			seed = time(NULL) + omp_get_thread_num();
 #pragma omp for
 			for (i = 0; i < swarm->num_particles; i++) {
 				particle = &swarm->particle[i];
@@ -63,19 +63,20 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
 				pso_eval_fitness(function, particle, &curr_fitness);
 
 				/* Update pbest */
+//#pragma omp critical
+				//{
 				if (curr_fitness < particle->fitness) {
 					particle->fitness = curr_fitness;
-					
-#pragma omp parallel for
 					
 					for (j = 0; j < particle->dim; j++)
 						particle->pbest[j] = particle->x[j];
 				}
+				//}
 			} /* Particle loop */
 		} /* End of parallel region */
 
         /* Identify best performing particle */
-        g = pso_get_best_fitness_omp(swarm);
+        g = pso_get_best_fitness_omp(swarm, num_threads);
 
 #pragma omp parallel for
         for (i = 0; i < swarm->num_particles; i++) {
@@ -88,6 +89,8 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
         fprintf(stderr, "\nIteration %d:\n", iter);
         pso_print_particle(&swarm->particle[g]);
 #endif
+
+//#pragma omp barrier
         iter++;
     } /* End of iteration */
     return g;
@@ -100,7 +103,8 @@ int optimize_using_omp(char *function, int dim, int swarm_size,
      /* Initialize PSO */
     swarm_t *swarm;
     srand(time(NULL));
-    swarm = pso_init_omp(function, dim, swarm_size, xmin, xmax);
+    swarm = pso_init_omp(function, dim, swarm_size, xmin, xmax, num_threads);
+    //swarm = pso_init(function, dim, swarm_size, xmin, xmax);
     if (swarm == NULL) {
         fprintf(stderr, "Unable to initialize PSO\n");
         exit(EXIT_FAILURE);
