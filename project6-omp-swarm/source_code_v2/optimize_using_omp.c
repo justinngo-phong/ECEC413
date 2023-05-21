@@ -33,10 +33,10 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
 	omp_set_num_threads(num_threads);
 	
     while (iter < max_iter) {
-#pragma omp parallel private(i, j, particle, gbest, r1, r2, curr_fitness) shared(swarm, w, c1, c2, xmax, xmin, g)
-		{
-			seed = time(NULL) + omp_get_thread_num();
-#pragma omp for
+#pragma omp parallel for private(i, j, particle, gbest, r1, r2, curr_fitness) shared(swarm, w, c1, c2, xmax, xmin, g) 
+		//{
+			//seed = time(NULL) + omp_get_thread_num();
+//#pragma omp for
 			for (i = 0; i < swarm->num_particles; i++) {
 				particle = &swarm->particle[i];
 				gbest = &swarm->particle[particle->g];  /* Best performing particle from last iteration */ 
@@ -73,12 +73,12 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
 				}
 				//}
 			} /* Particle loop */
-		} /* End of parallel region */
+		//} /* End of parallel region */
 
         /* Identify best performing particle */
         g = pso_get_best_fitness_omp(swarm, num_threads);
 
-#pragma omp parallel for
+#pragma omp parallel for 
         for (i = 0; i < swarm->num_particles; i++) {
             particle = &swarm->particle[i];
             particle->g = g;
