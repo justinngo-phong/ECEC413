@@ -147,7 +147,7 @@ int pso_get_best_fitness(swarm_t *swarm)
 	return g;
 }
 
-
+/*
 int pso_get_best_fitness_omp(swarm_t *swarm, int num_threads)
 {
 	int i, g;
@@ -161,14 +161,45 @@ int pso_get_best_fitness_omp(swarm_t *swarm, int num_threads)
 	for (i = 0; i < swarm->num_particles; i++) {
 		particle = &swarm->particle[i];
 		if (particle->fitness < best_fitness) {
-//#pragma omp critical
-			//{
-			best_fitness = particle->fitness;
-			g = i;
-			//}
+#pragma omp critical
+			{
+				best_fitness = particle->fitness;
+				g = i;
+			}
 		}
 	}
 	return g;
+}
+*/
+
+int pso_get_best_fitness_omp(swarm_t *swarm, int num_threads) {
+	int i;
+	float best_fitness = swarm->particle[0].fitness;
+	int best_particle_index = 0;
+
+#pragma omp parallel num_threads(num_threads)
+	{
+		int local_best_particle_index = best_particle_index;
+		float local_best_fitness = best_fitness;
+
+#pragma omp for
+		for (i = 1; i < swarm->num_particles; i++) {
+			if (swarm->particle[i].fitness < local_best_fitness) {
+				local_best_fitness = swarm->particle[i].fitness;
+				local_best_particle_index = i;
+			}
+		}
+
+#pragma omp critical
+		{
+			if (local_best_fitness < best_fitness) {
+				best_fitness = local_best_fitness;
+				best_particle_index = local_best_particle_index;
+			}
+		}
+	}
+
+	return best_particle_index;
 }
 
 /* Free swarm data structure */
@@ -325,7 +356,7 @@ swarm_t *pso_init_omp(char *function, int dim, int swarm_size,
 			if (status < 0) {
 #pragma omp critical
 				{
-				error_flag = 1;
+					error_flag = 1;
 				}
 			}
 			particle->fitness = fitness;
@@ -340,8 +371,8 @@ swarm_t *pso_init_omp(char *function, int dim, int swarm_size,
 		return NULL;
 	}
 	/* get index of particle with best fitness */
-	g = pso_get_best_fitness_omp(swarm, num_threads);
-	//g = pso_get_best_fitness(swarm);
+	//g = pso_get_best_fitness_omp(swarm, num_threads);
+	g = pso_get_best_fitness(swarm);
 
 #pragma omp parallel for
 	for (i = 0; i < swarm->num_particles; i++) {
