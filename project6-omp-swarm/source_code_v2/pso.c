@@ -55,6 +55,17 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Error optimizing function using reference code\n");
 		exit (EXIT_FAILURE);
 	}
+	/*
+	gettimeofday(&start, NULL);
+	status = optimize_gold(function, dim, swarm_size, xmin, xmax, max_iter);
+	gettimeofday(&stop, NULL);
+	fprintf(stderr, "Gold execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
+				+ (stop.tv_usec - start.tv_usec)/(float)1000000));
+	if (status < 0) {
+		fprintf(stderr, "Error optimizing function using reference code\n");
+		exit (EXIT_FAILURE);
+	}
+	*/
 
 	/* Complete this function to perform PSO using OpenMP. 
 	 * Return -1 on error, 0 on success. Print best-performing 
@@ -62,6 +73,7 @@ int main(int argc, char **argv)
 	 */
 	gettimeofday(&start, NULL);
 	status = optimize_using_omp(function, dim, swarm_size, xmin, xmax, max_iter, num_threads);
+	//status = optimize_gold(function, dim, swarm_size, xmin, xmax, max_iter);
 	gettimeofday(&stop, NULL);
 	fprintf(stderr, "OpenMP execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
 				+ (stop.tv_usec - start.tv_usec)/(float)1000000));

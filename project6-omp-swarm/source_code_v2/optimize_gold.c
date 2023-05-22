@@ -30,9 +30,6 @@ int pso_solve_gold(char *function, swarm_t *swarm, float xmax, float xmin, int m
     g = -1;
     unsigned int seed = time(NULL); // Seed the random number generator 
     while (iter < max_iter) {
-      
-        //#pragma omp parallel for private(j) shared(swarm, particle, gbest)
-        
         for (i = 0; i < swarm->num_particles; i++) {
             particle = &swarm->particle[i];
             gbest = &swarm->particle[particle->g];  /* Best performing particle from last iteration */ 
@@ -61,8 +58,6 @@ int pso_solve_gold(char *function, swarm_t *swarm, float xmax, float xmin, int m
             /* Update pbest */
             if (curr_fitness < particle->fitness) {
                 particle->fitness = curr_fitness;
-                
-                //#pragma omp parallel for
                 
                 for (j = 0; j < particle->dim; j++)
                     particle->pbest[j] = particle->x[j];
