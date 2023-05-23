@@ -117,32 +117,49 @@ void gauss_eliminate_using_omp(Matrix U)
 
 	int i, j, k;
 
-	omp_set_num_threads(4);
+	omp_set_num_threads(8);
 
-	for (k = 0; k < U.num_rows; k++) {
 
-#pragma omp parallel for
+#pragma omp parallel private(i, j, k) shared(U)
+	{
 
-		for (j = (k + 1); j < U.num_rows; j++) {   /* Reduce the current row. */
-			if (U.elements[U.num_rows * k + k] == 0) {
-				fprintf(stderr, "Numerical instability. The principal diagonal element is zero.\n");
-				exit(EXIT_FAILURE);
-			}            
-			U.elements[U.num_rows * k + j] = (float)(U.elements[U.num_rows * k + j] / U.elements[U.num_rows * k + k]);	/* Division step */
-		}
+		int tid = omp_get_thread_num();
 
-		U.elements[U.num_rows * k + k] = 1;	/* Set the principal diagonal entry in U to 1 */ 
+		for (k = 0; k < U.num_rows; k++) {
 
-#pragma omp parallel for private(i, j) shared(U)
+#pragma omp for
 
-		for (i = (k + 1); i < U.num_rows; i++) {
-			for (j = (k + 1); j < U.num_rows; j++)
-				U.elements[U.num_rows * i + j] = U.elements[U.num_rows * i + j] - (U.elements[U.num_rows * i + k] * U.elements[U.num_rows * k + j]);	/* Elimination step */
+			for (j = (k + 1); j < U.num_rows; j++) {   /* Reduce the current row. */
+				if (U.elements[U.num_rows * k + k] == 0) {
+					fprintf(stderr, "Numerical instability. The principal diagonal element is zero.\n");
+					exit(EXIT_FAILURE);
+				}            
+				U.elements[U.num_rows * k + j] = (float)(U.elements[U.num_rows * k + j] / U.elements[U.num_rows * k + k]);	/* Division step */
+			}
 
-			U.elements[U.num_rows * i + k] = 0;
+#pragma omp barrier
+
+			if(tid == 0){
+
+				U.elements[U.num_rows * k + k] = 1;	/* Set the principal diagonal entry in U to 1 */ 
+
+			}
+
+#pragma omp barrier
+
+#pragma omp for private(j) //shared(U)
+
+			for (i = (k + 1); i < U.num_rows; i++) {
+				for (j = (k + 1); j < U.num_rows; j++)
+					U.elements[U.num_rows * i + j] = U.elements[U.num_rows * i + j] - (U.elements[U.num_rows * i + k] * U.elements[U.num_rows * k + j]);	/* Elimination step */
+
+				U.elements[U.num_rows * i + k] = 0;
+			}
+
+#pragma omp barrier
+
 		}
 	}
-
 }
 
 

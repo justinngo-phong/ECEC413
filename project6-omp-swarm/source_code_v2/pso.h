@@ -4,8 +4,8 @@
 /* Spit out debug info. 
  * FIXME: comment out when measuring execution time 
  * */
-// #define VERBOSE_DEBUG
-// #define SIMPLE_DEBUG
+//#define VERBOSE_DEBUG
+//#define SIMPLE_DEBUG
 
 /* Structure of a particle */
 typedef struct particle_s {
