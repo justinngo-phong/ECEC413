@@ -364,8 +364,8 @@ swarm_t *pso_init_omp(char *function, int dim, int swarm_size,
 		return NULL;
 	}
 	/* get index of particle with best fitness */
-	//g = pso_get_best_fitness_omp(swarm, num_threads);
-	g = pso_get_best_fitness(swarm);
+	g = pso_get_best_fitness_omp(swarm, num_threads);
+	//g = pso_get_best_fitness(swarm);
 
 #pragma omp parallel for private(i, particle) shared(swarm, g)
 	for (i = 0; i < swarm->num_particles; i++) {

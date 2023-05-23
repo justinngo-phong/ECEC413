@@ -79,8 +79,8 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
 
 
 		/* Identify best performing particle */
-		//g = pso_get_best_fitness_omp(swarm, num_threads);
-		g = pso_get_best_fitness(swarm);
+		g = pso_get_best_fitness_omp(swarm, num_threads);
+		//g = pso_get_best_fitness(swarm);
 
 #pragma omp parallel for private(i, particle) shared(swarm, g)
 		for (i = 0; i < swarm->num_particles; i++) {
