@@ -1,8 +1,8 @@
 CC = gcc
 CFLAGS = -fopenmp -std=c99 -Wall -O3 -lm
-SRCS = jacobi_solver.c compute_gold.c
+SRCS = gauss_eliminate.c compute_gold.c
 OBJS = $(SRCS:.c=.o)
-EXECUTABLE = jacobi_solver
+EXECUTABLE = gauss_eliminate
 
 all: $(EXECUTABLE)
 
