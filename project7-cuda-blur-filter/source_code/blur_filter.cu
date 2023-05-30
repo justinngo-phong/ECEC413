@@ -74,7 +74,7 @@ int main(int argc, char **argv)
 	gettimeofday(&start, NULL);
 	compute_on_device(in, out_gpu);
 	gettimeofday(&stop, NULL);
-	fprintf(stderr, "GPU execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
+	fprintf(stderr, "Total runtime including data transfer time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
 				+ (stop.tv_usec - start.tv_usec)/(float)1000000));; 
 
 	/* Check CPU and GPU results for correctness */
@@ -101,6 +101,7 @@ void compute_on_device(const image_t in, image_t out)
 {
 	float *d_in, *d_out;
 	int size = in.size;
+	struct timeval start, stop;
 
 	/* Allocate device memory */
 	cudaMalloc((void**)&d_in, size * size * sizeof(float));
@@ -112,7 +113,12 @@ void compute_on_device(const image_t in, image_t out)
 	/* Launch kernel with appropriate block and grid dimensions */
 	dim3 blockDim(NUM_THREADS, NUM_THREADS, 1);
 	dim3 gridDim((size + blockDim.x - 1) / blockDim.x, (size + blockDim.y - 1) / blockDim.y);
+
+	gettimeofday(&start, NULL);
 	blur_filter_kernel<<<gridDim, blockDim>>>(d_in, d_out, size);
+	gettimeofday(&stop, NULL);
+	fprintf(stderr, "GPU execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
+				+ (stop.tv_usec - start.tv_usec)/(float)1000000));; 
 
 	/* Copy result back to host memory */
 	cudaMemcpy(out.element, d_out, size * size * sizeof(float), cudaMemcpyDeviceToHost);
