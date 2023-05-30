@@ -35,8 +35,7 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
 	while (iter < max_iter) {
 #pragma omp parallel private(i, j, particle, gbest, r1, r2, curr_fitness) firstprivate(w, c1, c2, xmax, xmin, g, seed) shared(swarm)
 		{
-			//seed = time(NULL) + omp_get_thread_num();
-			//printf("%d, %d\n", iter, g);
+			seed = time(NULL) + omp_get_thread_num();
 #pragma omp for
 			for (i = 0; i < swarm->num_particles; i++) {
 				particle = &swarm->particle[i];
@@ -80,7 +79,6 @@ int pso_solve_omp(char *function, swarm_t *swarm, float xmax, float xmin, int ma
 
 		/* Identify best performing particle */
 		g = pso_get_best_fitness_omp(swarm, num_threads);
-		//g = pso_get_best_fitness(swarm);
 
 #pragma omp parallel for private(i, particle) shared(swarm, g)
 		for (i = 0; i < swarm->num_particles; i++) {
@@ -108,7 +106,6 @@ int optimize_using_omp(char *function, int dim, int swarm_size,
 	swarm_t *swarm;
 	srand(time(NULL));
 	swarm = pso_init_omp(function, dim, swarm_size, xmin, xmax, num_threads);
-	//swarm = pso_init(function, dim, swarm_size, xmin, xmax);
 	if (swarm == NULL) {
 		fprintf(stderr, "Unable to initialize PSO\n");
 		exit(EXIT_FAILURE);
