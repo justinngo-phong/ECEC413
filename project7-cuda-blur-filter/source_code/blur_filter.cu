@@ -7,8 +7,8 @@
 Author: Naga Kandasamy
 Date modified: February 16, 2022
 
-Student name(s): FIXME
-Date modified: FIXME
+Student name(s): Justin Ngo, Harrison Muller
+Date modified: May 25, 2023
  */
 
 #include <stdlib.h>
@@ -17,13 +17,13 @@ Date modified: FIXME
 #include <math.h>
 #include <sys/time.h>
 
-/* #define DEBUG */
+// #define DEBUG
 
 /* Include the kernel code */
 #include "blur_filter_kernel.cu"
 
 extern "C" void compute_gold(const image_t, image_t);
-void compute_on_device(const image_t, image_t, int);
+void compute_on_device(const image_t, image_t);
 int check_results(const float *, const float *, int, float);
 void print_image(const image_t);
 
@@ -69,10 +69,10 @@ int main(int argc, char **argv)
 	print_image(out_gold);
 #endif
 
-	/* FIXME: Calculate the blur on the GPU. The result is stored in out_gpu. */
+	/* Calculate the blur on the GPU. The result is stored in out_gpu. */
 	fprintf(stderr, "Calculating blur on the GPU\n");
 	gettimeofday(&start, NULL);
-	compute_on_device(in, out_gpu, size);
+	compute_on_device(in, out_gpu);
 	gettimeofday(&stop, NULL);
 	fprintf(stderr, "GPU execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
 				+ (stop.tv_usec - start.tv_usec)/(float)1000000));; 
@@ -96,10 +96,11 @@ int main(int argc, char **argv)
 	exit(EXIT_SUCCESS);
 }
 
-/* FIXME: Complete this function to calculate the blur on the GPU */
-void compute_on_device(const image_t in, image_t out, int size)
+/* Complete this function to calculate the blur on the GPU */
+void compute_on_device(const image_t in, image_t out)
 {
 	float *d_in, *d_out;
+	int size = in.size;
 
 	/* Allocate device memory */
 	cudaMalloc((void**)&d_in, size * size * sizeof(float));
@@ -109,7 +110,7 @@ void compute_on_device(const image_t in, image_t out, int size)
 	cudaMemcpy(d_in, in.element, size * size * sizeof(float), cudaMemcpyHostToDevice);
 
 	/* Launch kernel with appropriate block and grid dimensions */
-	dim3 blockDim(16, 16);
+	dim3 blockDim(NUM_THREADS, NUM_THREADS, 1);
 	dim3 gridDim((size + blockDim.x - 1) / blockDim.x, (size + blockDim.y - 1) / blockDim.y);
 	blur_filter_kernel<<<gridDim, blockDim>>>(d_in, d_out, size);
 
