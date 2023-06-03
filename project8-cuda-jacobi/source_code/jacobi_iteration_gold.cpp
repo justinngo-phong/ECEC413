@@ -59,7 +59,9 @@ void compute_gold(const matrix_t A, matrix_t x, const matrix_t B)
         }
         num_iter++;
         mse = sqrt (ssd); /* Mean squared error. */
+#ifdef PRINT_ITERATIONS
         printf("Iteration: %d. MSE = %f\n", num_iter, mse); 
+#endif
         
         if ((mse <= THRESHOLD) || (num_iter == max_iter))
             done = 1;
