@@ -73,7 +73,7 @@ int main(int argc, char **argv)
 	/* Compute Jacobi solution on device. Solutions are returned 
 	   in gpu_naive_solution_x and gpu_opt_solution_x. */
 	printf("\nPerforming Jacobi iteration on device using naive method with %d 1D block size\n", \
-																			min(BLOCK_SIZE_1D, MATRIX_SIZE));
+																			min(THREAD_BLOCK_SIZE, MATRIX_SIZE));
 	gettimeofday(&start, NULL);
 	compute_on_device_naive(A, gpu_naive_solution_x, B);
 	gettimeofday(&stop, NULL);
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 	display_jacobi_solution(A, gpu_naive_solution_x, B); /* Display statistics */
 
 	printf("\nPerforming Jacobi iteration on device using optimized method %d 1D block size\n", \
-																			min(BLOCK_SIZE_1D, MATRIX_SIZE));
+																			min(THREAD_BLOCK_SIZE, MATRIX_SIZE));
 	gettimeofday(&start, NULL);
 	compute_on_device_optimized(A, gpu_opt_solution_x, B);
 	gettimeofday(&stop, NULL);
@@ -124,7 +124,7 @@ void compute_on_device_naive(const matrix_t A, matrix_t gpu_naive_sol_x, const m
 	check_CUDA_error("Allocate memory and copy data to kernel failed");
 
 	/* Set up execution grid on device */
-	dim3 blockDim(min(BLOCK_SIZE_1D, MATRIX_SIZE), 1, 1);
+	dim3 blockDim(THREAD_BLOCK_SIZE, 1, 1);
 	dim3 gridDim((MATRIX_SIZE + blockDim.x - 1) / blockDim.x);
 	check_CUDA_error("Set up execution grid failed");
 
@@ -136,6 +136,8 @@ void compute_on_device_naive(const matrix_t A, matrix_t gpu_naive_sol_x, const m
 
 	gettimeofday(&start, NULL);
 	while(!done) {
+		num_iter++;
+
 		/* cudaMemset ssd to 0 */
 		cudaMemset(d_ssd, 0, sizeof(double));
 
@@ -145,7 +147,6 @@ void compute_on_device_naive(const matrix_t A, matrix_t gpu_naive_sol_x, const m
 
 		cudaMemcpy(&ssd, d_ssd, sizeof(double), cudaMemcpyDeviceToHost);
 
-		num_iter++;
 		mse = sqrt(ssd);
 #ifdef PRINT_ITERATIONS
 		printf("Iteration: %d. MSE = %f\n", num_iter, mse);
@@ -155,14 +156,15 @@ void compute_on_device_naive(const matrix_t A, matrix_t gpu_naive_sol_x, const m
 			done = 1;
 
 		/* Flip pointers for ping-pong buffers */
+		//cudaMemcpy(d_x.elements, d_x_new.elements, MATRIX_SIZE * sizeof(float), cudaMemcpyDeviceToDevice);
 		matrix_t temp = d_x;
 		d_x = d_x_new;
 		d_x_new = temp;
 	}
 	gettimeofday(&stop, NULL);
+	printf("Convergence achieved after %d iterations using naive method\n", num_iter);
 	printf("Naive method execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
 				+ (stop.tv_usec - start.tv_usec)/(float)1000000));
-	printf("\nConvergence achieved after %d iterations using naive method\n", num_iter);
 
 	copy_matrix_from_device(gpu_naive_sol_x, d_x);
 
@@ -184,30 +186,20 @@ void compute_on_device_optimized(const matrix_t A, matrix_t gpu_opt_sol_x, const
 	matrix_t d_A = allocate_matrix_on_device(A);
 	copy_matrix_to_device(d_A, A);
 
-	matrix_t A_col = allocate_matrix_on_host(MATRIX_SIZE, MATRIX_SIZE, 0);
-	matrix_t d_A_col = allocate_matrix_on_device(A_col);
-
-	/* Set up execution grid on device */
-	dim3 blockDim(min(BLOCK_SIZE_1D, MATRIX_SIZE), 1, 1);
-	dim3 gridDim((MATRIX_SIZE + blockDim.x - 1) / blockDim.x);
-	/*
-	dim3 blockDim(BLOCK_SIZE_2D, BLOCK_SIZE_2D, 1);
-	dim3 gridDim((MATRIX_SIZE + blockDim.x - 1) / blockDim.x, (MATRIX_SIZE + blockDim.y - 1) / blockDim.y);
-	*/
-	check_CUDA_error("Set up execution grid failed");
+	matrix_t A_T = allocate_matrix_on_host(MATRIX_SIZE, MATRIX_SIZE, 0);
+	matrix_t d_A_T = allocate_matrix_on_device(A_T);
 
 	/* Transpose matrix A on the host */
-	//transpose_matrix_kernel<<<gridDim, blockDim>>>(d_A.elements, d_A_col.elements);
-	//transpose_matrix_kernel<<<gridDim, blockDim>>>(d_A.elements);
 	for (int i = 0; i < MATRIX_SIZE; i++) {
 		for (int j = 0; j < MATRIX_SIZE; j++) {
-			A_col.elements[j * MATRIX_SIZE + i] = A.elements[i * MATRIX_SIZE + j];
+			A_T.elements[j * MATRIX_SIZE + i] = A.elements[i * MATRIX_SIZE + j];
 		}
 	}
-	copy_matrix_to_device(d_A_col, A_col);
+	copy_matrix_to_device(d_A_T, A_T);
 
 #ifdef DEBUG
-	print_matrix(A_col);
+	copy_matrix_from_device(A_T, d_A_T);
+	print_matrix(A_T);
 #endif
 
 	matrix_t d_B = allocate_matrix_on_device(B);
@@ -217,6 +209,11 @@ void compute_on_device_optimized(const matrix_t A, matrix_t gpu_opt_sol_x, const
 	copy_matrix_to_device(d_x, gpu_opt_sol_x);
 
 	matrix_t d_x_new = allocate_matrix_on_device(gpu_opt_sol_x);
+
+	/* Set up execution grid on device */
+	dim3 blockDim(THREAD_BLOCK_SIZE, 1, 1);
+	dim3 gridDim((MATRIX_SIZE + blockDim.x - 1) / blockDim.x);
+	check_CUDA_error("Set up execution grid failed");
 
 	double *d_ssd;
 	cudaMalloc((void **)&d_ssd, sizeof(double));
@@ -230,15 +227,16 @@ void compute_on_device_optimized(const matrix_t A, matrix_t gpu_opt_sol_x, const
 
 	gettimeofday(&start, NULL);
 	while(!done) {
+		num_iter++;
+
 		/* cudaMemset ssd to 0 */
 		cudaMemset(d_ssd, 0, sizeof(double));
 
-		jacobi_iteration_kernel_optimized<<<gridDim, blockDim, blockDim.x * sizeof(double)>>>(d_A_col.elements, \
+		jacobi_iteration_kernel_optimized<<<gridDim, blockDim, blockDim.x * sizeof(double)>>>(d_A_T.elements, \
 				d_B.elements, d_x.elements, d_x_new.elements, d_ssd);
 
 		cudaMemcpy(&ssd, d_ssd, sizeof(double), cudaMemcpyDeviceToHost);
 
-		num_iter++;
 		mse = sqrt(ssd);
 #ifdef PRINT_ITERATIONS
 		printf("Iteration: %d. MSE = %f\n", num_iter, mse);
@@ -248,22 +246,23 @@ void compute_on_device_optimized(const matrix_t A, matrix_t gpu_opt_sol_x, const
 			done = 1;
 
 		/* Flip pointers for ping-pong buffers */
+		//cudaMemcpy(d_x.elements, d_x_new.elements, MATRIX_SIZE * sizeof(float), cudaMemcpyDeviceToDevice);
 		matrix_t temp = d_x;
 		d_x = d_x_new;
 		d_x_new = temp;
 	}
 	gettimeofday(&stop, NULL);
+	printf("Convergence achieved after %d iterations using optimized method\n", num_iter);
 	printf("Optimized method execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec\
 				+ (stop.tv_usec - start.tv_usec)/(float)1000000));
-
-	printf("\nConvergence achieved after %d iterations using optimized method\n", num_iter);
 
 	copy_matrix_from_device(gpu_opt_sol_x, d_x);
 
 	cudaFree(d_x.elements);
 	cudaFree(d_x_new.elements);
 	cudaFree(d_A.elements);
-	cudaFree(d_A_col.elements);
+	cudaFree(A_T.elements);
+	cudaFree(d_A_T.elements);
 	cudaFree(d_B.elements);
 	cudaFree(d_ssd);
 }

@@ -10,10 +10,9 @@ __global__ void jacobi_iteration_kernel_naive(float *A, float *B, float *x, floa
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int n = MATRIX_SIZE;
 
-	double sum = 0.0;
+	double sum = -A[i * n + i] * x[i];
 	for (int j = 0; j < n; j++) {
-		if (i != j)
-			sum += A[i * n + j] * x[j];
+		sum += A[i * n + j] * x[j];
 	}
 
 	new_x[i] = (B[i] - sum) / A[i * n + i];
@@ -35,30 +34,19 @@ __global__ void jacobi_iteration_kernel_naive(float *A, float *B, float *x, floa
 		atomicAdd(ssd, s_ssd[0]);
 }
 
-__global__ void transpose_matrix_kernel(float *A, float *A_col)
-{
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	int j = blockIdx.y * blockDim.y + threadIdx.y;
-	int n = MATRIX_SIZE;
-
-	A_col[i * n + j] = A[j * n + i];
-}
-
-__global__ void jacobi_iteration_kernel_optimized(float *A_col, float *B, float *x, float *new_x, double *ssd)
+__global__ void jacobi_iteration_kernel_optimized(float *A_T, float *B, float *x, float *new_x, double *ssd)
 {
 	extern __shared__ double s_ssd[];
 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int n = MATRIX_SIZE;
 
-	double sum = 0.0;
+	double sum = -A_T[i * n + i] * x[i];
 	for (int j = 0; j < n; j++) {
-		if (i != j)
-			sum += A_col[j * n + i] * x[j];  // Access A_col in column-major order
+		sum += A_T[j * n + i] * x[j];  // Access A_T in column-major order
 	}
-	__syncthreads();
 
-	new_x[i] = (B[i] - sum) / A_col[i * n + i];  // Access A_col in column-major order
+	new_x[i] = (B[i] - sum) / A_T[i * n + i];  // Access A_T in column-major order
 
 	double diff = new_x[i] - x[i];
 	s_ssd[threadIdx.x] = diff * diff;
