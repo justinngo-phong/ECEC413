@@ -63,7 +63,6 @@ int main(int argc, char **argv)
 	struct timeval start, stop;
 	/* Compute Jacobi solution on CPU */
 	printf("\nPerforming Jacobi iteration on the CPU\n");
-	/*
 	gettimeofday(&start, NULL);
 	compute_gold(A, reference_x, B);
 	gettimeofday(&stop, NULL);
@@ -215,6 +214,7 @@ void compute_on_device_optimized(const matrix_t A, matrix_t gpu_opt_sol_x, const
 	/* Set up execution grid on device */
 	dim3 blockDim(1, THREAD_BLOCK_SIZE, 1);
 	dim3 gridDim(1, (MATRIX_SIZE + THREAD_BLOCK_SIZE- 1) / THREAD_BLOCK_SIZE);
+
 	check_CUDA_error("Set up execution grid failed");
 
 	double *d_ssd;

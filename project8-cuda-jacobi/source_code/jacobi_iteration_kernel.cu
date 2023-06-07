@@ -29,7 +29,7 @@ __global__ void jacobi_iteration_kernel_naive(float *A, float *B, float *x, floa
 				s_ssd[threadIdx.x] += s_ssd[threadIdx.x + stride];
 			__syncthreads();
 		}
-	}
+}
 
 	/* Store ssd back to global memory */
 	if (threadIdx.x == 0)
