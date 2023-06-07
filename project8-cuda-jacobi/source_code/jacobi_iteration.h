@@ -5,7 +5,7 @@
 #define MIN_NUMBER 2        /* Min number in the A and b matrices */
 #define MAX_NUMBER 10       /* Max number in the A and b matrices */
 
-#define THREAD_BLOCK_SIZE 256
+#define THREAD_BLOCK_SIZE 256	/* Size of a thread block */
 
 #define MATRIX_SIZE 1024
 #define NUM_COLUMNS MATRIX_SIZE         /* Number of columns in matrix A */

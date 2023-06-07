@@ -141,10 +141,9 @@ void compute_on_device_naive(const matrix_t A, matrix_t gpu_naive_sol_x, const m
 		/* cudaMemset ssd to 0 */
 		cudaMemset(d_ssd, 0, sizeof(double));
 
-		jacobi_iteration_kernel_naive<<<gridDim, blockDim>>>(d_A.elements, \
+		jacobi_iteration_kernel_naive<<<gridDim, blockDim, blockDim.x * sizeof(double)>>>(d_A.elements, \
 				d_B.elements, d_x.elements, d_x_new.elements, d_ssd);
-		cudaDeviceSynchronize();
-		check_CUDA_error("Kernel failed");
+		//cudaDeviceSynchronize();
 
 		cudaMemcpy(&ssd, d_ssd, sizeof(double), cudaMemcpyDeviceToHost);
 
@@ -212,9 +211,8 @@ void compute_on_device_optimized(const matrix_t A, matrix_t gpu_opt_sol_x, const
 	matrix_t d_x_new = allocate_matrix_on_device(gpu_opt_sol_x);
 
 	/* Set up execution grid on device */
-	dim3 blockDim(1, THREAD_BLOCK_SIZE, 1);
-	dim3 gridDim(1, (MATRIX_SIZE + THREAD_BLOCK_SIZE- 1) / THREAD_BLOCK_SIZE);
-
+	dim3 blockDim(THREAD_BLOCK_SIZE, 1, 1);
+	dim3 gridDim((MATRIX_SIZE + blockDim.x - 1) / blockDim.x);
 	check_CUDA_error("Set up execution grid failed");
 
 	double *d_ssd;
@@ -234,10 +232,8 @@ void compute_on_device_optimized(const matrix_t A, matrix_t gpu_opt_sol_x, const
 		/* cudaMemset ssd to 0 */
 		cudaMemset(d_ssd, 0, sizeof(double));
 
-		jacobi_iteration_kernel_optimized<<<gridDim, blockDim>>>(d_A_T.elements, \
+		jacobi_iteration_kernel_optimized<<<gridDim, blockDim, blockDim.x * sizeof(double)>>>(d_A_T.elements, \
 				d_B.elements, d_x.elements, d_x_new.elements, d_ssd);
-		cudaDeviceSynchronize();
-		check_CUDA_error("Kernel failed");
 
 		cudaMemcpy(&ssd, d_ssd, sizeof(double), cudaMemcpyDeviceToHost);
 
