@@ -29,57 +29,57 @@ __constant__ float kernel_c[2 * HALF_WIDTH + 1];
 #include "separable_convolution_kernel.cu"
 
 /* Check for errors reported by the CUDA run time */
-void check_for_error(char *msg)
+void check_for_error(const char *msg)
 {
-        cudaError_t err = cudaGetLastError();
-        if (cudaSuccess != err) {
-                printf("CUDA ERROR: %s (%s)\n", msg, cudaGetErrorString(err));
-                exit(EXIT_FAILURE);
-        }
+	cudaError_t err = cudaGetLastError();
+	if (cudaSuccess != err) {
+		printf("CUDA ERROR: %s (%s)\n", msg, cudaGetErrorString(err));
+		exit(EXIT_FAILURE);
+	}
 
-    return;
+	return;
 }
 
 /* Print convolution kernel */
 void print_kernel(float *kernel, int half_width)
 {
-    int i, j = 0;
-    for (i = -half_width; i <= half_width; i++) {
-        printf("%0.2f ", kernel[j]);
-        j++;
-    }
+	int i, j = 0;
+	for (i = -half_width; i <= half_width; i++) {
+		printf("%0.2f ", kernel[j]);
+		j++;
+	}
 
-    printf("\n");
-    return;
+	printf("\n");
+	return;
 }
 
 /* Print matrix */
 void print_matrix(float *matrix, int num_cols, int num_rows)
 {
-    int i,  j;
-    float element;
-    for (i = 0; i < num_rows; i++) {
-        for (j = 0; j < num_cols; j++){
-            element = matrix[i * num_cols + j];
-            printf("%0.2f ", element);
-        }
-        printf("\n");
-    }
+	int i,  j;
+	float element;
+	for (i = 0; i < num_rows; i++) {
+		for (j = 0; j < num_cols; j++){
+			element = matrix[i * num_cols + j];
+			printf("%0.2f ", element);
+		}
+		printf("\n");
+	}
 
-    return;
+	return;
 }
 
-/* FIXME: Edit this function to compute the convolution on the device.*/
+/* function to compute the convolution on the device.*/
 void compute_on_device_naive(float *gpu_result, float *matrix_c,\
-                   float *kernel, int num_cols,\
-                   int num_rows, int half_width)
+		float *kernel, int num_cols,\
+		int num_rows, int half_width)
 {
 	/*Create pointers for computations.*/
 
 	float *gpu_result_ond;
 
 	float *matrix_ond;
- 
+
 	float *kernel_ond;
 
 	float *rowtocol;
@@ -103,7 +103,7 @@ void compute_on_device_naive(float *gpu_result, float *matrix_c,\
 	cudaMalloc((void**)&rowtocol, num_elements * sizeof(float));
 
 	/*Set up thread block and grid*/
-	
+
 	dim3 thread_block(THREAD_BLOCK_SIZE, 1, 1);
 
 	int num_thread_blocks = (num_rows + thread_block.x - 1) / thread_block.x;
@@ -111,7 +111,7 @@ void compute_on_device_naive(float *gpu_result, float *matrix_c,\
 	dim3 grid(num_thread_blocks, 1);
 
 	struct timeval start, stop;	
-	
+
 	printf("Performing Naive Convolution\n");
 
 	gettimeofday(&start, NULL);
@@ -131,12 +131,12 @@ void compute_on_device_naive(float *gpu_result, float *matrix_c,\
 	gettimeofday(&stop, NULL);
 
 	printf("Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec +\
-                (stop.tv_usec - start.tv_usec)/(float)1000000));
+				(stop.tv_usec - start.tv_usec)/(float)1000000));
 
 	/*Copy computation results to gpu_result for comparison */
 
 	cudaMemcpy(gpu_result, gpu_result_ond, num_elements * sizeof (float), cudaMemcpyDeviceToHost);	
-			   
+
 	cudaFree(gpu_result_ond);
 
 	cudaFree(matrix_ond);
@@ -147,208 +147,166 @@ void compute_on_device_naive(float *gpu_result, float *matrix_c,\
 }
 
 void compute_on_device_optimized(float *gpu_result, float *matrix_c,\
-                   float *kernel, int num_cols,\
-                   int num_rows, int half_width)
+		float *kernel, int num_cols,\
+		int num_rows, int half_width)
 {
 	/*Create pointers for computations.*/
 
-        float *gpu_result_ond;
+	float *gpu_result_ond;
 
-        float *matrix_ond;
+	float *matrix_ond;
 
-        float *rowtocol;
+	float *rowtocol;
 
 	/*Variables to assist with memory allocation and copying*/
 
-        int num_elements = num_rows * num_cols;
+	int num_elements = num_rows * num_cols;
 
-        int kernel_size = (2 * half_width) + 1;
+	int kernel_size = (2 * half_width) + 1;
 
 	/*Allocate memory for matrix, kernel, and result pointers*/
 
-        cudaMalloc((void**)&matrix_ond, num_elements * sizeof(float));
-        cudaMemcpy(matrix_ond, matrix_c, num_elements * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&matrix_ond, num_elements * sizeof(float));
+	cudaMemcpy(matrix_ond, matrix_c, num_elements * sizeof(float), cudaMemcpyHostToDevice);
 
-        cudaMalloc((void**)&gpu_result_ond, num_elements * sizeof(float));
+	cudaMalloc((void**)&gpu_result_ond, num_elements * sizeof(float));
 
-        cudaMalloc((void**)&rowtocol, num_elements * sizeof(float));
+	cudaMalloc((void**)&rowtocol, num_elements * sizeof(float));
 
 	/*Set up thread block and grid*/
 
-        dim3 thread_block(THREAD_BLOCK_SIZE, 1, 1);
+	dim3 thread_block(THREAD_BLOCK_SIZE, 1, 1);
 
-        int num_thread_blocks = (num_rows + thread_block.x - 1) / thread_block.x;
+	int num_thread_blocks = (num_rows + thread_block.x - 1) / thread_block.x;
 
-        dim3 grid(num_thread_blocks, 1);
+	dim3 grid(num_thread_blocks, 1);
 
-        struct timeval start, stop;
+	struct timeval start, stop;
 
 	printf("Performing Optimized Convolution\n");
 
 	/*Set up kernel in constant memory*/
 
-        cudaMemcpyToSymbol(kernel_c, kernel, kernel_size*sizeof(float));
+	cudaMemcpyToSymbol(kernel_c, kernel, kernel_size*sizeof(float));
 
-        gettimeofday(&start, NULL);
+	gettimeofday(&start, NULL);
 
 	/*Execute optimized implementation on GPU*/
 
-        convolve_rows_kernel_optimized<<<grid, thread_block>>>(rowtocol, matrix_ond, num_rows, num_cols, half_width);
+	convolve_rows_kernel_optimized<<<grid, thread_block>>>(rowtocol, matrix_ond, num_rows, num_cols, half_width);
 
-        cudaDeviceSynchronize();
+	cudaDeviceSynchronize();
 
-        check_for_error("KERNEL FAILURE");
+	check_for_error("KERNEL FAILURE");
 
-        convolve_columns_kernel_optimized<<<grid, thread_block>>>(gpu_result_ond, rowtocol, num_rows, num_cols, half_width);
+	convolve_columns_kernel_optimized<<<grid, thread_block>>>(gpu_result_ond, rowtocol, num_rows, num_cols, half_width);
 
-        cudaDeviceSynchronize();
+	cudaDeviceSynchronize();
 
-        gettimeofday(&stop, NULL);
+	gettimeofday(&stop, NULL);
 
-        printf("Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec +\
-                (stop.tv_usec - start.tv_usec)/(float)1000000));
+	printf("Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec +\
+				(stop.tv_usec - start.tv_usec)/(float)1000000));
 
-        cudaMemcpy(gpu_result, gpu_result_ond, num_elements * sizeof (float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(gpu_result, gpu_result_ond, num_elements * sizeof (float), cudaMemcpyDeviceToHost);
 
-        cudaFree(gpu_result_ond);
+	cudaFree(gpu_result_ond);
 
-        cudaFree(matrix_ond);
+	cudaFree(matrix_ond);
 
-        cudaFree(rowtocol);
+	cudaFree(rowtocol);
 }	
 
 
 int main(int argc, char **argv)
 {
-    if (argc < 3) {
-        printf("Usage: %s num-rows num-columns\n", argv[0]);
-        printf("num-rows: height of the matrix\n");
-        printf("num-columns: width of the matrix\n");
-        exit(EXIT_FAILURE);
-    }
-
-    int num_rows = atoi(argv[1]);
-    int num_cols = atoi(argv[2]);
-
-    /* Create input matrix */
-    int num_elements = num_rows * num_cols;
-    printf("Creating input matrix of %d x %d\n", num_rows, num_cols);
-    float *matrix_a = (float *)malloc(sizeof(float) * num_elements);
-    float *matrix_c = (float *)malloc(sizeof(float) * num_elements);
-	
-    srand(time(NULL));
-    int i;
-    for (i = 0; i < num_elements; i++) {
-        matrix_a[i] = rand()/(float)RAND_MAX;			 
-        matrix_c[i] = matrix_a[i]; /* Copy contents of matrix_a into matrix_c */
-    }
-	 
-	/* Create Gaussian kernel */	  
-    float *gaussian_kernel = create_kernel((float)COEFF, HALF_WIDTH);	
-#ifdef DEBUG
-    print_kernel(gaussian_kernel, HALF_WIDTH); 
-#endif
-	  
-    /* Convolve matrix along rows and columns. 
-       The result is stored in matrix_a, thereby overwriting the 
-       original contents of matrix_a.		
-     */
-    printf("\nConvolving the matrix on the CPU\n");	 
-    struct timeval start, stop;
-    gettimeofday(&start, NULL);
-    compute_gold(matrix_a, gaussian_kernel, num_cols,\
-                  num_rows, HALF_WIDTH);
-    gettimeofday(&stop, NULL);
-    printf("Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec +\
-                (stop.tv_usec - start.tv_usec)/(float)1000000));
-#ifdef DEBUG	 
-    print_matrix(matrix_a, num_cols, num_rows);
-#endif
-  
-    float *gpu_result_naive = (float *)malloc(sizeof(float) * num_elements);
-    float *gpu_result_opt = (float *)malloc(sizeof(float) * num_elements);
-    /* FIXME: Edit this function to complete the functionality on the GPU.
-       The input matrix is matrix_c and the result must be stored in 
-       gpu_result.
-     */
-    printf("\nConvolving matrix on the GPU\n");
-    compute_on_device_naive(gpu_result_naive, matrix_c, gaussian_kernel, num_cols,\
-                       num_rows, HALF_WIDTH);
-    
-    compute_on_device_optimized(gpu_result_opt, matrix_c, gaussian_kernel, num_cols,\
-                       num_rows, HALF_WIDTH);
-   
-    printf("\nComparing CPU and GPU results\n");
-    float sum_delta_naive = 0, sum_ref_naive = 0;
-    for (i = 0; i < num_elements; i++) {
-        sum_delta_naive += fabsf(matrix_a[i] - gpu_result_naive[i]);
-        sum_ref_naive   += fabsf(matrix_a[i]);
-    }
-        
-    float sum_delta_opt = 0, sum_ref_opt = 0;
-    for (i = 0; i < num_elements; i++) {
-        sum_delta_opt += fabsf(matrix_a[i] - gpu_result_opt[i]);
-        sum_ref_opt   += fabsf(matrix_a[i]);
-    }
-
-    float L1norm_naive = sum_delta_naive / sum_ref_naive;
-    float L1norm_opt = sum_delta_opt / sum_ref_opt;
-    float eps = 1e-6;
-    printf("L1 norm (naive): %E\n", L1norm_naive);
-    printf((L1norm_naive < eps) ? "TEST PASSED\n" : "TEST FAILED\n");
-
-    printf("L1 norm (optimized): %E\n", L1norm_opt);
-    printf((L1norm_opt < eps) ? "TEST PASSED\n" : "TEST FAILED\n");
-
-
-    free(matrix_a);
-    free(matrix_c);
-    free(gpu_result_naive);
-    free(gpu_result_opt);
-    free(gaussian_kernel);
-
-    exit(EXIT_SUCCESS);
-}
-
-/*
-//Check for errors reported by the CUDA run time 
-void check_for_error(char *msg)
-{
-	cudaError_t err = cudaGetLastError();
-	if (cudaSuccess != err) {
-		printf("CUDA ERROR: %s (%s)\n", msg, cudaGetErrorString(err));
+	if (argc < 3) {
+		printf("Usage: %s num-rows num-columns\n", argv[0]);
+		printf("num-rows: height of the matrix\n");
+		printf("num-columns: width of the matrix\n");
 		exit(EXIT_FAILURE);
 	}
 
-    return;
-} 
+	int num_rows = atoi(argv[1]);
+	int num_cols = atoi(argv[2]);
 
-//Print convolution kernel
-void print_kernel(float *kernel, int half_width)
-{
-    int i, j = 0;
-    for (i = -half_width; i <= half_width; i++) {
-        printf("%0.2f ", kernel[j]);
-        j++;
-    }
+	/* Create input matrix */
+	int num_elements = num_rows * num_cols;
+	printf("Creating input matrix of %d x %d\n", num_rows, num_cols);
+	float *matrix_a = (float *)malloc(sizeof(float) * num_elements);
+	float *matrix_c = (float *)malloc(sizeof(float) * num_elements);
 
-    printf("\n");
-    return;
+	srand(time(NULL));
+	int i;
+	for (i = 0; i < num_elements; i++) {
+		matrix_a[i] = rand()/(float)RAND_MAX;			 
+		matrix_c[i] = matrix_a[i]; /* Copy contents of matrix_a into matrix_c */
+	}
+
+	/* Create Gaussian kernel */	  
+	float *gaussian_kernel = create_kernel((float)COEFF, HALF_WIDTH);	
+#ifdef DEBUG
+	print_kernel(gaussian_kernel, HALF_WIDTH); 
+#endif
+
+	/* Convolve matrix along rows and columns. 
+	   The result is stored in matrix_a, thereby overwriting the 
+	   original contents of matrix_a.		
+	 */
+	printf("\nConvolving the matrix on the CPU\n");	 
+	struct timeval start, stop;
+	gettimeofday(&start, NULL);
+	compute_gold(matrix_a, gaussian_kernel, num_cols,\
+			num_rows, HALF_WIDTH);
+	gettimeofday(&stop, NULL);
+	printf("Execution time = %fs\n", (float)(stop.tv_sec - start.tv_sec +\
+				(stop.tv_usec - start.tv_usec)/(float)1000000));
+#ifdef DEBUG	 
+	print_matrix(matrix_a, num_cols, num_rows);
+#endif
+
+	float *gpu_result_naive = (float *)malloc(sizeof(float) * num_elements);
+	float *gpu_result_opt = (float *)malloc(sizeof(float) * num_elements);
+	/* function to complete the functionality on the GPU.
+	   The input matrix is matrix_c and the result must be stored in 
+	   gpu_result.
+	 */
+	printf("\nConvolving matrix on the GPU\n");
+	compute_on_device_naive(gpu_result_naive, matrix_c, gaussian_kernel, num_cols,\
+			num_rows, HALF_WIDTH);
+
+	compute_on_device_optimized(gpu_result_opt, matrix_c, gaussian_kernel, num_cols,\
+			num_rows, HALF_WIDTH);
+
+	printf("\nComparing CPU and GPU results\n");
+	float sum_delta_naive = 0, sum_ref_naive = 0;
+	for (i = 0; i < num_elements; i++) {
+		sum_delta_naive += fabsf(matrix_a[i] - gpu_result_naive[i]);
+		sum_ref_naive   += fabsf(matrix_a[i]);
+	}
+
+	float sum_delta_opt = 0, sum_ref_opt = 0;
+	for (i = 0; i < num_elements; i++) {
+		sum_delta_opt += fabsf(matrix_a[i] - gpu_result_opt[i]);
+		sum_ref_opt   += fabsf(matrix_a[i]);
+	}
+
+	float L1norm_naive = sum_delta_naive / sum_ref_naive;
+	float L1norm_opt = sum_delta_opt / sum_ref_opt;
+	float eps = 1e-6;
+	printf("L1 norm (naive): %E\n", L1norm_naive);
+	printf((L1norm_naive < eps) ? "TEST PASSED\n" : "TEST FAILED\n");
+
+	printf("L1 norm (optimized): %E\n", L1norm_opt);
+	printf((L1norm_opt < eps) ? "TEST PASSED\n" : "TEST FAILED\n");
+
+
+	free(matrix_a);
+	free(matrix_c);
+	free(gpu_result_naive);
+	free(gpu_result_opt);
+	free(gaussian_kernel);
+
+	exit(EXIT_SUCCESS);
 }
 
-//Print matrix
-void print_matrix(float *matrix, int num_cols, int num_rows)
-{
-    int i,  j;
-    float element;
-    for (i = 0; i < num_rows; i++) {
-        for (j = 0; j < num_cols; j++){
-            element = matrix[i * num_cols + j];
-            printf("%0.2f ", element);
-        }
-        printf("\n");
-    }
-
-    return;
-}
-*/
