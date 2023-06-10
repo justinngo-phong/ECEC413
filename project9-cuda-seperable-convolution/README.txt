@@ -17,7 +17,7 @@ To run the code:
 	$ ./seperable_convolution {num_rows} {num_cols}
 
 For example:
-	$ ./blur_filter 4096 4096
+	$ ./seperable_convolution 4096 4096
 
 To clean up executable files:
 	make clean
