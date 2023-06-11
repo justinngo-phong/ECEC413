@@ -10,6 +10,9 @@ This project performs Jacobi Solver iteration on the GPU with CUDA.
 
 
 --------------------------------COMPILE AND RUN-------------------------------- 
+Set parameters:
+	THREAD_BLOCK_SIZE and MATRIX_SIZE can be set in jacobi_iteration.h
+
 Compile using the Makefile:
 	make clean && make
 
